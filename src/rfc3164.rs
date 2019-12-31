@@ -1,10 +1,9 @@
+use crate::header::Header;
 ///! Parsers for rfc 3164 specific formats.
 use crate::parsers::{hostname, pri, u32_digits};
 use chrono::prelude::*;
 use nom::character::complete::{space0, space1};
 use nom::IResult;
-use crate::header::Header;
-
 
 /// An incomplete date is a tuple of (month, date, hour, minutes, seconds)
 pub type IncompleteDate = (u32, u32, u32, u32, u32);
@@ -42,7 +41,6 @@ named!(timestamp(&str) -> IncompleteDate,
            seconds: u32_digits >>
            ((month, date, hour, minute, seconds))
        ));
-
 
 /// Makes a timestamp given all the fields of the date less the year
 /// and a function to resolve the year.

@@ -15,17 +15,15 @@ named!(pub(crate) pri<&str, u8>,
            tag!(">")
        ));
 
-
 named!(optional(&str) -> Option<&str>,
        do_parse! (
            value: take_while!(|c: char| !c.is_whitespace()) >>
            ( if value == "-" {
-               None 
+               None
              } else {
                Some(value)
              })
        ));
-             
 
 // Parse the host name or ip address.
 named!(pub(crate) hostname(&str) -> Option<&str>, call!(optional));
@@ -38,7 +36,6 @@ named!(pub(crate) procid(&str) -> Option<&str>, call!(optional));
 
 // Parse the Message Id
 named!(pub(crate) msgid(&str) -> Option<&str>, call!(optional));
-
 
 #[cfg(test)]
 mod tests {
