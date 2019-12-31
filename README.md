@@ -11,13 +11,15 @@ The goal will be to extract as much correct information from the message rather 
 
 ```rust
 
-parse_message_with_year(msg, 
-                        |(month, _date, _hour, _min, _sec)| {
-                          if month == 12 { 
-                              2019
-                          } else { 
-                              2020
-                          }
-                        })
+fn resolve_year((month, _date, _hour, _min, _sec): syslog_loose::IncompleteDate) -> i32 {
+    let now = Utc::now();
+    if now.month() == 1 && month == 12 {
+        now.year() - 1
+    } else {
+        now.year()
+    }
+}
+
+parse_message_with_year(msg, resolve_year)
 
 ```

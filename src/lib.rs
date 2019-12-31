@@ -11,6 +11,8 @@ use crate::{error::ParseError, header::Header};
 use chrono::prelude::*;
 use nom::{character::complete::space0, IResult};
 
+pub use rfc3164::IncompleteDate;
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Protocol {
     RFC3164,
@@ -27,7 +29,7 @@ pub struct Message<'a> {
 
 fn parse<F>(input: &str, get_year: F) -> IResult<&str, Message>
 where
-    F: FnOnce(rfc3164::IncompleteDate) -> i32,
+    F: FnOnce(IncompleteDate) -> i32,
 {
     match rfc5424::header(input) {
         Ok((input, header)) => {
@@ -69,7 +71,7 @@ where
 ///
 pub fn parse_message_with_year<F>(input: &str, get_year: F) -> Result<Message, ParseError>
 where
-    F: FnOnce(rfc3164::IncompleteDate) -> i32,
+    F: FnOnce(IncompleteDate) -> i32,
 {
     let (_, result) = parse(input, get_year).map_err(|err| ParseError(err))?;
     Ok(result)
