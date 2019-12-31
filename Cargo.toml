@@ -12,7 +12,10 @@ chrono = "0.4"
 criterion = "0.3.0"
 syslog_rfc5424 = "0.6.1"
 
+[[example]]
+name = "server"
+
 [[bench]]
-name="bench"
-path="benches/bench.rs"
-harness=false
+name = "bench"
+path = "benches/bench.rs"
+harness = false

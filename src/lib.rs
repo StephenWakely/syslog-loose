@@ -1,12 +1,13 @@
 #[macro_use]
 extern crate nom;
 
+mod error;
 mod header;
 mod parsers;
 mod rfc3164;
 mod rfc5424;
 
-use crate::header::Header;
+use crate::{error::ParseError, header::Header};
 use chrono::prelude::*;
 use nom::{character::complete::space0, IResult};
 
@@ -18,22 +19,13 @@ pub enum Protocol {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Message<'a> {
-    header: Header<'a>,
-    protocol: Protocol,
-    structured_data: Vec<rfc5424::StructuredElement<'a>>,
-    msg: &'a str,
+    pub header: Header<'a>,
+    pub protocol: Protocol,
+    pub structured_data: Vec<rfc5424::StructuredElement<'a>>,
+    pub msg: &'a str,
 }
 
-///
-/// Parse the message.
-///
-/// # Arguments
-///
-/// * input - the string containing the message.
-/// * get_year - a function that is called if the parsed message contains a date with no year.
-///              the function takes a (month, date, hour, minute, second) tuple and should return the year to use.
-///
-pub fn parse_message_with_year<F>(input: &str, get_year: F) -> IResult<&str, Message>
+fn parse<F>(input: &str, get_year: F) -> IResult<&str, Message>
 where
     F: FnOnce(rfc3164::IncompleteDate) -> i32,
 {
@@ -66,6 +58,23 @@ where
     }
 }
 
+///
+/// Parse the message.
+///
+/// # Arguments
+///
+/// * input - the string containing the message.
+/// * get_year - a function that is called if the parsed message contains a date with no year.
+///              the function takes a (month, date, hour, minute, second) tuple and should return the year to use.
+///
+pub fn parse_message_with_year<F>(input: &str, get_year: F) -> Result<Message, ParseError>
+where
+    F: FnOnce(rfc3164::IncompleteDate) -> i32,
+{
+    let (_, result) = parse(input, get_year).map_err(|err| ParseError(err))?;
+    Ok(result)
+}
+
 /// Parses the message.
 /// For messages where the timestamp doesn't specify a year it just
 /// takes the current year.
@@ -74,7 +83,7 @@ where
 ///
 /// * input - the string containing the message.
 ///
-pub fn parse_message(input: &str) -> IResult<&str, Message> {
+pub fn parse_message(input: &str) -> Result<Message, ParseError> {
     parse_message_with_year(input, |_| Utc::now().year())
 }
 
@@ -96,21 +105,20 @@ mod tests {
                                             2020
                                         }
                                     }).unwrap(),
-            ("",
-             Message {
-                 header: Header {
-                     pri: 190,
-                     version: None,
-                     timestamp: Some(FixedOffset::west(0).ymd(2019, 12, 28).and_hms(16, 49, 07)),
-                     hostname: Some("plertrood-thinkpad-x220"),
-                     appname: None,
-                     procid: None,
-                     msgid: None,
-                 },
-                 protocol: Protocol::RFC3164,
-                 structured_data: vec![],
-                 msg: "nginx: 127.0.0.1 - - [28/Dec/2019:16:49:07 +0000] \"GET / HTTP/1.1\" 304 0 \"-\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0\"",
-             })
+            Message {
+                header: Header {
+                    pri: 190,
+                    version: None,
+                    timestamp: Some(FixedOffset::west(0).ymd(2019, 12, 28).and_hms(16, 49, 07)),
+                    hostname: Some("plertrood-thinkpad-x220"),
+                    appname: None,
+                    procid: None,
+                    msgid: None,
+                },
+                protocol: Protocol::RFC3164,
+                structured_data: vec![],
+                msg: "nginx: 127.0.0.1 - - [28/Dec/2019:16:49:07 +0000] \"GET / HTTP/1.1\" 304 0 \"-\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0\"",
+            }
         );
     }
 
@@ -120,27 +128,24 @@ mod tests {
 
         assert_eq!(
             parse_message(msg).unwrap(),
-            (
-                "",
-                Message {
-                    header: Header {
-                        pri: 34,
-                        version: Some(1),
-                        timestamp: Some(
-                            FixedOffset::west(0)
-                                .ymd(2003, 10, 11)
-                                .and_hms_milli(22, 14, 15, 3)
-                        ),
-                        hostname: Some("mymachine.example.com"),
-                        appname: Some("su"),
-                        procid: None,
-                        msgid: Some("ID47"),
-                    },
-                    protocol: Protocol::RFC5424,
-                    structured_data: vec![],
-                    msg: "BOM'su root' failed for lonvick on /dev/pts/8",
-                }
-            )
+            Message {
+                header: Header {
+                    pri: 34,
+                    version: Some(1),
+                    timestamp: Some(
+                        FixedOffset::west(0)
+                            .ymd(2003, 10, 11)
+                            .and_hms_milli(22, 14, 15, 3)
+                    ),
+                    hostname: Some("mymachine.example.com"),
+                    appname: Some("su"),
+                    procid: None,
+                    msgid: Some("ID47"),
+                },
+                protocol: Protocol::RFC5424,
+                structured_data: vec![],
+                msg: "BOM'su root' failed for lonvick on /dev/pts/8",
+            }
         );
     }
 
@@ -150,34 +155,31 @@ mod tests {
 
         assert_eq!(
             parse_message(msg).unwrap(),
-            (
-                "",
-                Message {
-                    header: Header {
-                        pri: 165,
-                        version: Some(1),
-                        timestamp: Some(
-                            FixedOffset::west(0)
-                                .ymd(2003, 10, 11)
-                                .and_hms_milli(22, 14, 15, 3)
-                        ),
-                        hostname: Some("mymachine.example.com"),
-                        appname: Some("evntslog"),
-                        procid: None,
-                        msgid: Some("ID47"),
-                    },
-                    protocol: Protocol::RFC5424,
-                    structured_data: vec![rfc5424::StructuredElement {
-                        id: "exampleSDID@32473",
-                        params: vec![
-                            ("iut", "3"),
-                            ("eventSource", "Application"),
-                            ("eventID", "1011")
-                        ]
-                    },],
-                    msg: "BOMAn application event log entry...",
-                }
-            )
+            Message {
+                header: Header {
+                    pri: 165,
+                    version: Some(1),
+                    timestamp: Some(
+                        FixedOffset::west(0)
+                            .ymd(2003, 10, 11)
+                            .and_hms_milli(22, 14, 15, 3)
+                    ),
+                    hostname: Some("mymachine.example.com"),
+                    appname: Some("evntslog"),
+                    procid: None,
+                    msgid: Some("ID47"),
+                },
+                protocol: Protocol::RFC5424,
+                structured_data: vec![rfc5424::StructuredElement {
+                    id: "exampleSDID@32473",
+                    params: vec![
+                        ("iut", "3"),
+                        ("eventSource", "Application"),
+                        ("eventID", "1011")
+                    ]
+                },],
+                msg: "BOMAn application event log entry...",
+            }
         );
     }
 
