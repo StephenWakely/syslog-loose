@@ -12,7 +12,6 @@ use nom::{character::complete::space0, IResult};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Protocol {
-    Unknown,
     RFC3164,
     RFC5424,
 }
@@ -20,6 +19,7 @@ pub enum Protocol {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Message<'a> {
     header: Header<'a>,
+    protocol: Protocol,
     structured_data: Vec<rfc5424::StructuredElement<'a>>,
     msg: &'a str,
 }
@@ -44,6 +44,7 @@ where
             let (input, _) = space0(input)?;
             let msg = Message {
                 header,
+                protocol: Protocol::RFC5424,
                 structured_data,
                 msg: input,
             };
@@ -56,6 +57,7 @@ where
             // The remaining unparsed text becomes the message body.
             let msg = Message {
                 header,
+                protocol: Protocol::RFC3164,
                 structured_data: vec![],
                 msg: input,
             };
@@ -105,6 +107,7 @@ mod tests {
                      procid: None,
                      msgid: None,
                  },
+                 protocol: Protocol::RFC3164,
                  structured_data: vec![],
                  msg: "nginx: 127.0.0.1 - - [28/Dec/2019:16:49:07 +0000] \"GET / HTTP/1.1\" 304 0 \"-\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0\"",
              })
@@ -133,6 +136,7 @@ mod tests {
                         procid: None,
                         msgid: Some("ID47"),
                     },
+                    protocol: Protocol::RFC5424,
                     structured_data: vec![],
                     msg: "BOM'su root' failed for lonvick on /dev/pts/8",
                 }
@@ -162,6 +166,7 @@ mod tests {
                         procid: None,
                         msgid: Some("ID47"),
                     },
+                    protocol: Protocol::RFC5424,
                     structured_data: vec![rfc5424::StructuredElement {
                         id: "exampleSDID@32473",
                         params: vec![
