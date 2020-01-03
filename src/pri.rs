@@ -150,6 +150,11 @@ impl SyslogSeverity {
     }
 }
 
+/// The numeric value for the pri is composed of the facility * 8 + severity
+pub fn compose_pri(facility: SyslogFacility, severity:SyslogSeverity) -> u32 {
+    (facility as u32) * 8 + (severity as u32)
+}
+
 /// The pri field is composed of both the facility and severity values.
 /// The first byte is the Severity, the remaining are the Facility.
 fn decompose_pri(pri: i32) -> (Option<SyslogFacility>, Option<SyslogSeverity>) {
@@ -198,4 +203,10 @@ mod tests {
     fn parse_pri() {
         assert_eq!(pri("<34>").unwrap(), ("", (Some(SyslogFacility::LOG_AUTH), Some(SyslogSeverity::SEV_CRIT))));
     }
+    
+    #[test]
+    fn parse_invalid_pri() {
+        assert_eq!(pri("<192>").unwrap(), ("", (None, Some(SyslogSeverity::SEV_EMERG))));
+    }
+    
 }

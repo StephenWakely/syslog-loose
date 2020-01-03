@@ -157,6 +157,24 @@ mod tests {
     use super::*;
     use crate::pri::{SyslogFacility, SyslogSeverity};
 
+    #[macro_use]
+    extern crate quickcheck;
+    
+    impl Arbitrary for Header {
+        fn Arbitrary<G: Gen>(g: &mut G) -> Header {
+            
+        }
+    }
+    
+    #[test]
+    fn quickcheck_5424_header() {
+        let (_, h) = header("<34>1 2003-10-11T22:14:15.003Z mymachine.example.com su - ID47 ").unwrap();
+        let printed = format!("{} ", h);
+        println!("{}", printed);
+        let (_, h_) = header(&printed).unwrap();
+        assert_eq!(h, h_);
+    }
+
     #[test]
     fn parse_5424_header() {
         assert_eq!(

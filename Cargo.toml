@@ -11,6 +11,7 @@ chrono = "0.4"
 [dev-dependencies]
 criterion = "0.3.0"
 syslog_rfc5424 = "0.6.1"
+quickcheck = "0.9.0"
 
 [[example]]
 name = "server"
