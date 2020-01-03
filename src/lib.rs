@@ -4,6 +4,7 @@ extern crate nom;
 mod error;
 mod header;
 mod parsers;
+mod pri;
 mod rfc3164;
 mod rfc5424;
 
@@ -12,6 +13,7 @@ use chrono::prelude::*;
 use nom::{character::complete::space0, IResult};
 
 pub use rfc3164::IncompleteDate;
+pub use pri::{SyslogFacility, SyslogSeverity};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Protocol {
@@ -73,7 +75,7 @@ pub fn parse_message_with_year<F>(input: &str, get_year: F) -> Result<Message, P
 where
     F: FnOnce(IncompleteDate) -> i32,
 {
-    let (_, result) = parse(input, get_year).map_err(|err| ParseError(err))?;
+    let (_, result) = parse(input, get_year).map_err(ParseError)?;
     Ok(result)
 }
 
@@ -109,7 +111,8 @@ mod tests {
                                     }).unwrap(),
             Message {
                 header: Header {
-                    pri: 190,
+                    facility: Some(SyslogFacility::LOG_LOCAL7), 
+                    severity: Some(SyslogSeverity::SEV_INFO),
                     version: None,
                     timestamp: Some(FixedOffset::west(0).ymd(2019, 12, 28).and_hms(16, 49, 07)),
                     hostname: Some("plertrood-thinkpad-x220"),
@@ -132,7 +135,8 @@ mod tests {
             parse_message(msg).unwrap(),
             Message {
                 header: Header {
-                    pri: 34,
+                    facility: Some(SyslogFacility::LOG_AUTH), 
+                    severity: Some(SyslogSeverity::SEV_CRIT),
                     version: Some(1),
                     timestamp: Some(
                         FixedOffset::west(0)
@@ -159,7 +163,8 @@ mod tests {
             parse_message(msg).unwrap(),
             Message {
                 header: Header {
-                    pri: 165,
+                    facility: Some(SyslogFacility::LOG_LOCAL4),
+                    severity: Some(SyslogSeverity::SEV_NOTICE),
                     version: Some(1),
                     timestamp: Some(
                         FixedOffset::west(0)
@@ -184,5 +189,4 @@ mod tests {
             }
         );
     }
-
 }

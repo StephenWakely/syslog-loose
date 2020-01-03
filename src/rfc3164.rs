@@ -1,6 +1,7 @@
 use crate::header::Header;
 ///! Parsers for rfc 3164 specific formats.
-use crate::parsers::{hostname, pri, u32_digits};
+use crate::parsers::{hostname, u32_digits};
+use crate::pri::pri;
 use chrono::prelude::*;
 use nom::character::complete::{space0, space1};
 use nom::IResult;
@@ -69,7 +70,8 @@ where
             >> space1
             >> hostname: hostname
             >> (Header {
-                pri,
+                facility: pri.0,
+                severity: pri.1,
                 timestamp: Some(make_timestamp(timestamp, get_year)),
                 hostname,
                 version: None,
@@ -91,6 +93,7 @@ fn parse_timestamp_3164() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pri::{SyslogFacility, SyslogSeverity};
 
     #[test]
     fn parse_3164_header() {
@@ -99,7 +102,8 @@ mod tests {
             (
                 " ",
                 Header {
-                    pri: 34,
+                    facility: Some(SyslogFacility::LOG_AUTH), 
+                    severity: Some(SyslogSeverity::SEV_CRIT),
                     timestamp: Some(FixedOffset::west(0).ymd(2019, 10, 11).and_hms(22, 14, 15)),
                     hostname: Some("mymachine"),
                     version: None,

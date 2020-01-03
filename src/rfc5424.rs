@@ -1,6 +1,8 @@
-use crate::header::Header;
-use crate::parsers::{appname, hostname, msgid, pri, procid, u32_digits};
 ///! Parsers for rfc 5424 specific formats.
+
+use crate::header::Header;
+use crate::parsers::{appname, hostname, msgid, procid, u32_digits};
+use crate::pri::pri;
 use chrono::prelude::*;
 use nom::character::complete::space1;
 
@@ -70,15 +72,16 @@ named!(pub(crate) header(&str) -> Header,
            procid: procid >>
            space1 >>
            msgid: msgid >>
-
-           (Header { pri,
-                     version: Some(version),
-                     timestamp: Some(timestamp),
-                     hostname,
-                     appname,
-                     procid,
-                     msgid,
-           })
+           (
+               Header { facility: pri.0,
+                        severity: pri.1,
+                        version: Some(version),
+                        timestamp: Some(timestamp),
+                        hostname,
+                        appname,
+                        procid,
+                        msgid,
+               })
        ));
 
 #[test]
@@ -152,6 +155,7 @@ fn parse_structured_data() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pri::{SyslogFacility, SyslogSeverity};
 
     #[test]
     fn parse_5424_header() {
@@ -160,7 +164,8 @@ mod tests {
             (
                 " ",
                 Header {
-                    pri: 34,
+                    facility: Some(SyslogFacility::LOG_AUTH), 
+                    severity: Some(SyslogSeverity::SEV_CRIT),
                     version: Some(1),
                     timestamp: Some(
                         FixedOffset::west(0)
