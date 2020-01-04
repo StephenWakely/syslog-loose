@@ -10,13 +10,17 @@ named!(pub(crate) i32_digits<&str, i32>, map_res!(digit1, FromStr::from_str));
 
 named!(optional(&str) -> Option<&str>,
        do_parse! (
-           value: take_while!(|c: char| !c.is_whitespace()) >>
+           // Note we need to use the ':' as a separator between the 3164 headers and the message.
+           // So the header fields can't use them. Need to be aware of this to check 
+           // if this will be an issue.
+           value: take_while!(|c: char| !c.is_whitespace() && c != ':') >>
            ( if value == "-" {
                None
              } else {
                Some(value)
              })
        ));
+
 
 // Parse the host name or ip address.
 named!(pub(crate) hostname(&str) -> Option<&str>, call!(optional));

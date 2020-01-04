@@ -1,5 +1,4 @@
 ///! Parsers for rfc 5424 specific formats.
-
 use crate::header::Header;
 use crate::parsers::{appname, hostname, msgid, procid, u32_digits};
 use crate::pri::pri;
@@ -164,7 +163,7 @@ mod tests {
             (
                 " ",
                 Header {
-                    facility: Some(SyslogFacility::LOG_AUTH), 
+                    facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
                     version: Some(1),
                     timestamp: Some(

@@ -12,8 +12,8 @@ use crate::{error::ParseError, header::Header};
 use chrono::prelude::*;
 use nom::{character::complete::space0, IResult};
 
-pub use rfc3164::IncompleteDate;
 pub use pri::{SyslogFacility, SyslogSeverity};
+pub use rfc3164::IncompleteDate;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Protocol {
@@ -111,18 +111,18 @@ mod tests {
                                     }).unwrap(),
             Message {
                 header: Header {
-                    facility: Some(SyslogFacility::LOG_LOCAL7), 
+                    facility: Some(SyslogFacility::LOG_LOCAL7),
                     severity: Some(SyslogSeverity::SEV_INFO),
                     version: None,
                     timestamp: Some(FixedOffset::west(0).ymd(2019, 12, 28).and_hms(16, 49, 07)),
                     hostname: Some("plertrood-thinkpad-x220"),
-                    appname: None,
+                    appname: Some("nginx"),
                     procid: None,
                     msgid: None,
                 },
                 protocol: Protocol::RFC3164,
                 structured_data: vec![],
-                msg: "nginx: 127.0.0.1 - - [28/Dec/2019:16:49:07 +0000] \"GET / HTTP/1.1\" 304 0 \"-\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0\"",
+                msg: "127.0.0.1 - - [28/Dec/2019:16:49:07 +0000] \"GET / HTTP/1.1\" 304 0 \"-\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0\"",
             }
         );
     }
@@ -135,7 +135,7 @@ mod tests {
             parse_message(msg).unwrap(),
             Message {
                 header: Header {
-                    facility: Some(SyslogFacility::LOG_AUTH), 
+                    facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
                     version: Some(1),
                     timestamp: Some(

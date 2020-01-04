@@ -1,6 +1,6 @@
 use crate::header::Header;
 ///! Parsers for rfc 3164 specific formats.
-use crate::parsers::{hostname, u32_digits};
+use crate::parsers::{appname, hostname, u32_digits};
 use crate::pri::pri;
 use chrono::prelude::*;
 use nom::character::complete::{space0, space1};
@@ -65,17 +65,18 @@ where
     do_parse!(
         input,
         pri: pri
-            >> space0
-            >> timestamp: timestamp
-            >> space1
-            >> hostname: hostname
+            >> timestamp: preceded!(space0, timestamp)
+            >> hostname: opt!(preceded!(space1, hostname))
+            >> appname: opt!(preceded!(space1, appname))
+            >> opt!(tag!(":"))
+            >> opt!(space0)
             >> (Header {
                 facility: pri.0,
                 severity: pri.1,
                 timestamp: Some(make_timestamp(timestamp, get_year)),
-                hostname,
+                hostname: hostname.flatten(),
                 version: None,
-                appname: None,
+                appname: appname.flatten(),
                 procid: None,
                 msgid: None,
             })
@@ -96,13 +97,39 @@ mod tests {
     use crate::pri::{SyslogFacility, SyslogSeverity};
 
     #[test]
-    fn parse_3164_header() {
+    fn parse_3164_header_timestamp() {
+        /*
+        Note the requirement for there to be a : to separate the header and the message.
+        I can't see a way around this. a is a valid hostname and message is a valid appname..
+        This is not completely compliant with the RFC. 
+        Are there any significant systems that will send a syslog like this?
+        */
         assert_eq!(
-            header("<34>Oct 11 22:14:15 mymachine ", |_| 2019).unwrap(),
+            header("<34>Oct 11 22:14:15: a message", |_| 2019).unwrap(),
             (
-                " ",
+                "a message",
                 Header {
-                    facility: Some(SyslogFacility::LOG_AUTH), 
+                    facility: Some(SyslogFacility::LOG_AUTH),
+                    severity: Some(SyslogSeverity::SEV_CRIT),
+                    timestamp: Some(FixedOffset::west(0).ymd(2019, 10, 11).and_hms(22, 14, 15)),
+                    hostname: None,
+                    version: None,
+                    appname: None,
+                    procid: None,
+                    msgid: None,
+                }
+            )
+        );
+    }
+
+    #[test]
+    fn parse_3164_header_timestamp_host() {
+        assert_eq!(
+            header("<34>Oct 11 22:14:15 mymachine: a message", |_| 2019).unwrap(),
+            (
+                "a message",
+                Header {
+                    facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
                     timestamp: Some(FixedOffset::west(0).ymd(2019, 10, 11).and_hms(22, 14, 15)),
                     hostname: Some("mymachine"),
