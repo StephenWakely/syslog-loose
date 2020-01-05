@@ -1,6 +1,6 @@
 use crate::header::Header;
 ///! Parsers for rfc 3164 specific formats.
-use crate::parsers::{appname, hostname, u32_digits};
+use crate::parsers::{hostname, u32_digits};
 use crate::pri::pri;
 use chrono::prelude::*;
 use nom::character::complete::{space0, space1};
@@ -56,6 +56,16 @@ where
     FixedOffset::west(0).ymd(year, mon, d).and_hms(h, min, s)
 }
 
+// Parse the tag - a process name optionally followed by a pid in [].
+named!(pub(crate) tag(&str) -> (&str, Option<&str>),
+       do_parse!(
+           tag: take_while!(|c: char| !c.is_whitespace() && c != ':' && c != '[') >>
+           pid: opt!(delimited!( char!('['),
+                                 is_not!("]"),
+                                 char!(']') )) >>
+               ( tag, pid )
+       ));
+
 /// Parses the header.
 /// Fails if it cant parse a 3164 format header.
 pub fn header<F>(input: &str, get_year: F) -> IResult<&str, Header>
@@ -67,7 +77,7 @@ where
         pri: pri
             >> timestamp: preceded!(space0, timestamp)
             >> hostname: opt!(preceded!(space1, hostname))
-            >> appname: opt!(preceded!(space1, appname))
+            >> tag: opt!(preceded!(space1, tag))
             >> opt!(tag!(":"))
             >> opt!(space0)
             >> (Header {
@@ -76,8 +86,8 @@ where
                 timestamp: Some(make_timestamp(timestamp, get_year)),
                 hostname: hostname.flatten(),
                 version: None,
-                appname: appname.flatten(),
-                procid: None,
+                appname: tag.map(|(appname, _)| appname),
+                procid: tag.and_then(|(_, pid)| pid),
                 msgid: None,
             })
     )
@@ -91,6 +101,16 @@ fn parse_timestamp_3164() {
     );
 }
 
+#[test]
+fn parse_tag_with_pid() {
+    assert_eq!(tag("app[23]").unwrap(), ("", ("app", Some("23"))));
+}
+
+#[test]
+fn parse_tag_without_pid() {
+    assert_eq!(tag("app ").unwrap(), (" ", ("app", None)));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -101,7 +121,7 @@ mod tests {
         /*
         Note the requirement for there to be a : to separate the header and the message.
         I can't see a way around this. a is a valid hostname and message is a valid appname..
-        This is not completely compliant with the RFC. 
+        This is not completely compliant with the RFC.
         Are there any significant systems that will send a syslog like this?
         */
         assert_eq!(
@@ -136,6 +156,29 @@ mod tests {
                     version: None,
                     appname: None,
                     procid: None,
+                    msgid: None,
+                }
+            )
+        );
+    }
+
+    #[test]
+    fn parse_3164_header_timestamp_host_appname_pid() {
+        assert_eq!(
+            header("<34>Oct 11 22:14:15 mymachine app[323]: a message", |_| {
+                2019
+            })
+            .unwrap(),
+            (
+                "a message",
+                Header {
+                    facility: Some(SyslogFacility::LOG_AUTH),
+                    severity: Some(SyslogSeverity::SEV_CRIT),
+                    timestamp: Some(FixedOffset::west(0).ymd(2019, 10, 11).and_hms(22, 14, 15)),
+                    hostname: Some("mymachine"),
+                    version: None,
+                    appname: Some("app"),
+                    procid: Some("323"),
                     msgid: None,
                 }
             )
