@@ -7,6 +7,7 @@ mod parsers;
 mod pri;
 mod rfc3164;
 mod rfc5424;
+mod structured_data;
 
 use crate::{error::ParseError, header::Header};
 use chrono::prelude::*;
@@ -25,7 +26,7 @@ pub enum Protocol {
 pub struct Message<'a> {
     pub header: Header<'a>,
     pub protocol: Protocol,
-    pub structured_data: Vec<rfc5424::StructuredElement<'a>>,
+    pub structured_data: Vec<structured_data::StructuredElement<'a>>,
     pub msg: &'a str,
 }
 
@@ -36,7 +37,7 @@ where
     match rfc5424::header(input) {
         Ok((input, header)) => {
             let (input, _) = space0(input)?;
-            let (input, structured_data) = rfc5424::structured_data(input)?;
+            let (input, structured_data) = structured_data::structured_data(input)?;
             let (input, _) = space0(input)?;
             let msg = Message {
                 header,
@@ -50,11 +51,13 @@ where
         Err(_) => {
             let (input, header) = rfc3164::header(input, get_year)?;
             let (input, _) = space0(input)?;
+            let (input, structured_data) = opt!(input, structured_data::structured_data)?;
+            let (input, _) = space0(input)?;
             // The remaining unparsed text becomes the message body.
             let msg = Message {
                 header,
                 protocol: Protocol::RFC3164,
-                structured_data: vec![],
+                structured_data: structured_data.unwrap_or(vec![]),
                 msg: input,
             };
             Ok(("", msg))
@@ -95,20 +98,21 @@ pub fn parse_message(input: &str) -> Result<Message, ParseError> {
 mod tests {
     use super::*;
 
+    fn with_year((month, _date, _hour, _min, _sec): IncompleteDate) -> i32 {
+        if month == 12 {
+            2019
+        } else {
+            2020
+        }
+    }
+
     #[test]
     fn parse_nginx() {
         // The nginx logs in 3164.
         let msg = "<190>Dec 28 16:49:07 plertrood-thinkpad-x220 nginx: 127.0.0.1 - - [28/Dec/2019:16:49:07 +0000] \"GET / HTTP/1.1\" 304 0 \"-\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0\"";
 
         assert_eq!(
-            parse_message_with_year(msg,
-                                    |(month, _date, _hour, _min, _sec)| {
-                                        if month == 12 {
-                                            2019
-                                        } else {
-                                            2020
-                                        }
-                                    }).unwrap(),
+            parse_message_with_year(msg, with_year).unwrap(),
             Message {
                 header: Header {
                     facility: Some(SyslogFacility::LOG_LOCAL7),
@@ -123,6 +127,43 @@ mod tests {
                 protocol: Protocol::RFC3164,
                 structured_data: vec![],
                 msg: "127.0.0.1 - - [28/Dec/2019:16:49:07 +0000] \"GET / HTTP/1.1\" 304 0 \"-\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0\"",
+            }
+        );
+    }
+
+    #[test]
+    fn parse_rsyslog() {
+        // rsyslog sends messages in 3164 with some structured data.
+        let msg = "<46>Jan  5 15:33:03 plertrood-ThinkPad-X220 rsyslogd:  [origin software=\"rsyslogd\" swVersion=\"8.32.0\" x-pid=\"20506\" x-info=\"http://www.rsyslog.com\"] start";
+
+        assert_eq!(
+            parse_message_with_year(msg, with_year).unwrap(),
+            Message {
+                header: Header {
+                    facility: Some(SyslogFacility::LOG_SYSLOG),
+                    severity: Some(SyslogSeverity::SEV_INFO),
+                    version: None,
+                    timestamp: Some(
+                        FixedOffset::west(0)
+                            .ymd(2020, 1, 5)
+                            .and_hms_milli(15, 33, 3, 0)
+                    ),
+                    hostname: Some("plertrood-ThinkPad-X220"),
+                    appname: Some("rsyslogd"),
+                    procid: None,
+                    msgid: None,
+                },
+                protocol: Protocol::RFC3164,
+                structured_data: vec![structured_data::StructuredElement {
+                    id: "origin",
+                    params: vec![
+                        ("software", "rsyslogd"),
+                        ("swVersion", "8.32.0"),
+                        ("x-pid", "20506"),
+                        ("x-info", "http://www.rsyslog.com"),
+                    ]
+                }],
+                msg: "start",
             }
         );
     }
@@ -177,7 +218,7 @@ mod tests {
                     msgid: Some("ID47"),
                 },
                 protocol: Protocol::RFC5424,
-                structured_data: vec![rfc5424::StructuredElement {
+                structured_data: vec![structured_data::StructuredElement {
                     id: "exampleSDID@32473",
                     params: vec![
                         ("iut", "3"),
@@ -188,5 +229,33 @@ mod tests {
                 msg: "BOMAn application event log entry...",
             }
         );
+    }
+
+    #[test]
+    fn parse_3164_invalid_structured_data() {
+        // Can 3164 parse ok when there is something looking similar to structured data - but not quite.
+        // Remove the id from the rsyslog messages structured data. This should now go into the msg.
+        let msg = "<46>Jan  5 15:33:03 plertrood-ThinkPad-X220 rsyslogd:  [software=\"rsyslogd\" swVersion=\"8.32.0\" x-pid=\"20506\" x-info=\"http://www.rsyslog.com\"] start";
+
+        assert_eq!(parse_message_with_year(msg, with_year).unwrap(),
+                   Message {
+                       header: Header {
+                           facility: Some(SyslogFacility::LOG_SYSLOG),
+                           severity: Some(SyslogSeverity::SEV_INFO),
+                           version: None,
+                           timestamp: Some(
+                               FixedOffset::west(0)
+                                   .ymd(2020, 1, 5)
+                                   .and_hms_milli(15, 33, 3, 0)
+                           ),
+                           hostname: Some("plertrood-ThinkPad-X220"),
+                           appname: Some("rsyslogd"),
+                           procid: None,
+                           msgid: None,
+                       },
+                       protocol: Protocol::RFC3164,
+                       structured_data: vec![],
+                       msg: "[software=\"rsyslogd\" swVersion=\"8.32.0\" x-pid=\"20506\" x-info=\"http://www.rsyslog.com\"] start",
+                   });
     }
 }
