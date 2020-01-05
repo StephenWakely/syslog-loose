@@ -11,19 +11,19 @@ pub type IncompleteDate = (u32, u32, u32, u32, u32);
 
 // The month as a three letter string. Returns the number.
 fn parse_month(s: &str) -> Result<u32, String> {
-    match s {
-        "Jan" => Ok(1),
-        "Feb" => Ok(2),
-        "Mar" => Ok(3),
-        "Apr" => Ok(4),
-        "May" => Ok(5),
-        "Jun" => Ok(6),
-        "Jul" => Ok(7),
-        "Aug" => Ok(8),
-        "Sep" => Ok(9),
-        "Oct" => Ok(10),
-        "Nov" => Ok(11),
-        "Dec" => Ok(12),
+    match s.to_lowercase().as_ref() {
+        "jan" => Ok(1),
+        "feb" => Ok(2),
+        "mar" => Ok(3),
+        "apr" => Ok(4),
+        "may" => Ok(5),
+        "jun" => Ok(6),
+        "jul" => Ok(7),
+        "aug" => Ok(8),
+        "sep" => Ok(9),
+        "oct" => Ok(10),
+        "nov" => Ok(11),
+        "dec" => Ok(12),
         _ => Err(format!("Invalid month {}", s)),
     }
 }
@@ -141,6 +141,34 @@ mod tests {
             )
         );
     }
+    
+    #[test]
+    fn parse_3164_header_timestamp_uppercase() {
+        /*
+        Note the requirement for there to be a : to separate the header and the message.
+        I can't see a way around this. a is a valid hostname and message is a valid appname..
+        This is not completely compliant with the RFC.
+        Are there any significant systems that will send a syslog like this?
+        */
+        assert_eq!(
+            header("<34>OCT 11 22:14:15: a message", |_| 2019).unwrap(),
+            (
+                "a message",
+                Header {
+                    facility: Some(SyslogFacility::LOG_AUTH),
+                    severity: Some(SyslogSeverity::SEV_CRIT),
+                    timestamp: Some(FixedOffset::west(0).ymd(2019, 10, 11).and_hms(22, 14, 15)),
+                    hostname: None,
+                    version: None,
+                    appname: None,
+                    procid: None,
+                    msgid: None,
+                }
+            )
+        );
+    }
+
+
 
     #[test]
     fn parse_3164_header_timestamp_host() {
