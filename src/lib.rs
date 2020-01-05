@@ -258,4 +258,32 @@ mod tests {
                        msg: "[software=\"rsyslogd\" swVersion=\"8.32.0\" x-pid=\"20506\" x-info=\"http://www.rsyslog.com\"] start",
                    });
     }
+    
+    
+    #[test]
+    fn parse_european_chars() {
+        let msg = "<46>Jan 5 10:01:00 Übergröße außerplanmäßig größenordnungsmäßig";
+
+        assert_eq!(parse_message_with_year(msg, with_year).unwrap(),
+                   Message {
+                       header: Header {
+                           facility: Some(SyslogFacility::LOG_SYSLOG),
+                           severity: Some(SyslogSeverity::SEV_INFO),
+                           version: None,
+                           timestamp: Some(
+                               FixedOffset::west(0)
+                                   .ymd(2020, 1, 5)
+                                   .and_hms_milli(10, 1, 0, 0)
+                           ),
+                           hostname: Some("Übergröße"),
+                           appname: Some("außerplanmäßig"),
+                           procid: None,
+                           msgid: None,
+                       },
+                       protocol: Protocol::RFC3164,
+                       structured_data: vec![],
+                       msg: "größenordnungsmäßig",
+                   });
+        
+    }
 }
