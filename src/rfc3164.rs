@@ -40,6 +40,7 @@ named!(timestamp_no_year(&str) -> IncompleteDate,
            minute: u32_digits >>
            tag!(":") >>
            seconds: u32_digits >>
+           opt!(tag!(":")) >>
            ((month, date, hour, minute, seconds))
        ));
 
@@ -57,6 +58,7 @@ named!(timestamp_with_year(&str) -> DateTime<FixedOffset>,
            minute: u32_digits >>
            tag!(":") >>
            seconds: u32_digits >>
+           opt!(tag!(":")) >>
            (FixedOffset::west(0).ymd(year, month, date).and_hms(hour, minute, seconds))
        ));
 
@@ -122,17 +124,27 @@ where
 #[test]
 fn parse_timestamp_3164() {
     assert_eq!(
-        timestamp_no_year("Dec 28 16:49:07").unwrap(),
-        ("", (12, 28, 16, 49, 7))
+        timestamp_no_year("Dec 28 16:49:07 ").unwrap(),
+        (" ", (12, 28, 16, 49, 7))
     );
 }
 
 #[test]
+fn parse_timestamp_3164_trailing_colon() {
+    assert_eq!(
+        timestamp_no_year("Dec 28 16:49:07:").unwrap(),
+        ("", (12, 28, 16, 49, 7))
+    );
+}
+
+
+
+#[test]
 fn parse_timestamp_with_year_3164() {
     assert_eq!(
-        timestamp("Dec 28 2008 16:49:07", |_| 2019).unwrap(),
+        timestamp("Dec 28 2008 16:49:07 ", |_| 2019).unwrap(),
         (
-            "",
+            " ",
             FixedOffset::west(0).ymd(2008, 12, 28).and_hms(16, 49, 07)
         )
     );
@@ -162,7 +174,7 @@ mod tests {
         Are there any significant systems that will send a syslog like this?
         */
         assert_eq!(
-            header("<34>Oct 11 22:14:15: a message", |_| 2019).unwrap(),
+            header("<34>Oct 11 22:14:15 : a message", |_| 2019).unwrap(),
             (
                 "a message",
                 Header {
@@ -182,7 +194,7 @@ mod tests {
     #[test]
     fn parse_3164_header_timestamp_uppercase() {
         assert_eq!(
-            header("<34>OCT 11 22:14:15: a message", |_| 2019).unwrap(),
+            header("<34>OCT 11 22:14:15 : a message", |_| 2019).unwrap(),
             (
                 "a message",
                 Header {

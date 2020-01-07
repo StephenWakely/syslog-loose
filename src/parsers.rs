@@ -14,7 +14,7 @@ named!(optional(&str) -> Option<&str>,
            // So the header fields can't use them. Need to be aware of this to check 
            // if this will be an issue.
            value: take_while!(|c: char| !c.is_whitespace() && c != ':') >>
-           ( if value == "-" {
+           ( if value == "-" || value == "" {
                None
              } else {
                Some(value)
