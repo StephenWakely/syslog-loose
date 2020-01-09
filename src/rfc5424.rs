@@ -1,47 +1,45 @@
 ///! Parsers for rfc 5424 specific formats.
 use crate::header::Header;
-use crate::parsers::{appname, hostname, msgid, procid, u32_digits};
+use crate::parsers::{appname, digits, hostname, msgid, procid};
 use crate::pri::pri;
 use chrono::prelude::*;
-use nom::character::complete::space1;
+use nom::{
+    bytes::complete::take_until,
+    character::complete::space1,
+    combinator::{map, map_res},
+    sequence::tuple,
+    IResult,
+};
 
-// The timestamp for 5424 messages yyyy-mm-ddThh:mm:ss.mmmmZ
-named!(timestamp(&str) -> DateTime<FixedOffset>,
-       map_res!(take_until!(" "), chrono::DateTime::parse_from_rfc3339)
-);
+/// The timestamp for 5424 messages yyyy-mm-ddThh:mm:ss.mmmmZ
+fn timestamp(input: &str) -> IResult<&str, DateTime<FixedOffset>> {
+    map_res(take_until(" "), chrono::DateTime::parse_from_rfc3339)(input)
+}
 
-// Parse the version number - just a simple integer.
-named!(version(&str) -> u32,
-       do_parse!( version: u32_digits >>
-                  (version)
-       ));
+/// Parse the version number - just a simple integer.
+fn version(input: &str) -> IResult<&str, u32> {
+    digits(input)
+}
 
-// Parse the full 5424 header
-named!(pub(crate) header(&str) -> Header,
-       do_parse! (
-           pri: pri >>
-           version: version >>
-           space1 >>
-           timestamp: timestamp >>
-           space1 >>
-           hostname: hostname >>
-           space1 >>
-           appname: appname >>
-           space1 >>
-           procid: procid >>
-           space1 >>
-           msgid: msgid >>
-           (
-               Header { facility: pri.0,
-                        severity: pri.1,
-                        version: Some(version),
-                        timestamp: Some(timestamp),
-                        hostname,
-                        appname,
-                        procid,
-                        msgid,
-               })
-       ));
+/// Parse the full 5424 header
+pub(crate) fn header(input: &str) -> IResult<&str, Header> {
+    map(
+        tuple((
+            pri, version, space1, timestamp, space1, hostname, space1, appname, space1, procid,
+            space1, msgid,
+        )),
+        |(pri, version, _, timestamp, _, hostname, _, appname, _, procid, _, msgid)| Header {
+            facility: pri.0,
+            severity: pri.1,
+            version: Some(version),
+            timestamp: Some(timestamp),
+            hostname,
+            appname,
+            procid,
+            msgid,
+        },
+    )(input)
+}
 
 #[test]
 fn parse_timestamp_5424() {

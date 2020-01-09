@@ -1,4 +1,11 @@
-use crate::parsers::i32_digits;
+use crate::parsers::digits;
+use nom::{
+    bytes::complete::tag,
+    combinator::map,
+    sequence::delimited,
+    IResult,
+};
+
 
 
 // Taken from https://github.com/Roguelazer/rust-syslog-rfc5424/blob/af76363081314f91433e014c76fd834acef756d5/src/facility.rs
@@ -164,13 +171,14 @@ fn decompose_pri(pri: i32) -> (Option<SyslogFacility>, Option<SyslogSeverity>) {
 
 // The message priority. An integer surrounded by <>
 // This number contains both the facility and the severity.
-named!(pub(crate) pri<&str, (Option<SyslogFacility>, Option<SyslogSeverity>)>,
-       delimited! (
-           tag!("<"),
-           do_parse!( pri: call!(i32_digits) >> 
-                      (decompose_pri(pri)) ),
-           tag!(">")
-       ));
+pub(crate) fn pri(input: &str) -> IResult<&str, (Option<SyslogFacility>, Option<SyslogSeverity>)> {
+    delimited (
+        tag("<"),
+        map( digits,
+             |pri| decompose_pri(pri)),
+        tag(">")
+    )(input)
+}
 
 
 #[test]

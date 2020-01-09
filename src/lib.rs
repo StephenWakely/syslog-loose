@@ -32,7 +32,7 @@ pub struct Message<'a> {
 
 fn parse<F>(input: &str, get_year: F) -> IResult<&str, Message>
 where
-    F: FnOnce(IncompleteDate) -> i32,
+    F: FnOnce(IncompleteDate) -> i32 + Copy,
 {
     match rfc5424::header(input) {
         Ok((input, header)) => {
@@ -76,7 +76,7 @@ where
 ///
 pub fn parse_message_with_year<F>(input: &str, get_year: F) -> Result<Message, ParseError>
 where
-    F: FnOnce(IncompleteDate) -> i32,
+    F: FnOnce(IncompleteDate) -> i32 + Copy,
 {
     let (_, result) = parse(input, get_year).map_err(ParseError)?;
     Ok(result)

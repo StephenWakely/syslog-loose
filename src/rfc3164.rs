@@ -1,15 +1,23 @@
-use crate::header::Header;
 ///! Parsers for rfc 3164 specific formats.
-use crate::parsers::{hostname, i32_digits, u32_digits};
-use crate::pri::pri;
+use crate::{
+    header::Header,
+    parsers::{digits, hostname},
+    pri::pri,
+};
 use chrono::prelude::*;
-use nom::character::complete::{space0, space1};
-use nom::IResult;
+use nom::{
+    branch::alt,
+    bytes::complete::{is_not, tag, take, take_while},
+    character::complete::{space0, space1},
+    combinator::{map, map_res, opt},
+    sequence::{delimited, preceded, tuple},
+    IResult,
+};
 
 /// An incomplete date is a tuple of (month, date, hour, minutes, seconds)
 pub type IncompleteDate = (u32, u32, u32, u32, u32);
 
-// The month as a three letter string. Returns the number.
+/// The month as a three letter string. Returns the number.
 fn parse_month(s: &str) -> Result<u32, String> {
     match s.to_lowercase().as_ref() {
         "jan" => Ok(1),
@@ -28,39 +36,49 @@ fn parse_month(s: &str) -> Result<u32, String> {
     }
 }
 
-// The timestamp for 3164 messages. MMM DD HH:MM:SS
-named!(timestamp_no_year(&str) -> IncompleteDate,
-       do_parse! (
-           month: map_res!(take!(3), parse_month) >>
-           space1 >>
-           date: u32_digits >>
-           space1 >>
-           hour: u32_digits >>
-           tag!(":") >>
-           minute: u32_digits >>
-           tag!(":") >>
-           seconds: u32_digits >>
-           opt!(tag!(":")) >>
-           ((month, date, hour, minute, seconds))
-       ));
+/// The timestamp for 3164 messages. MMM DD HH:MM:SS
+fn timestamp_no_year(input: &str) -> IResult<&str, IncompleteDate> {
+    map(
+        tuple((
+            map_res(take(3_usize), parse_month),
+            space1,
+            digits,
+            space1,
+            digits,
+            tag(":"),
+            digits,
+            tag(":"),
+            digits,
+            opt(tag(":")),
+        )),
+        |(month, _, date, _, hour, _, minute, _, seconds, _)| (month, date, hour, minute, seconds),
+    )(input)
+}
 
-// Timestamp including year. MMM DD YYYY HH:MM:SS
-named!(timestamp_with_year(&str) -> DateTime<FixedOffset>,
-       do_parse! (
-           month: map_res!(take!(3), parse_month) >>
-           space1 >>
-           date: u32_digits >>
-           space1 >>
-           year: i32_digits >>
-           space1 >>
-           hour: u32_digits >>
-           tag!(":") >>
-           minute: u32_digits >>
-           tag!(":") >>
-           seconds: u32_digits >>
-           opt!(tag!(":")) >>
-           (FixedOffset::west(0).ymd(year, month, date).and_hms(hour, minute, seconds))
-       ));
+/// Timestamp including year. MMM DD YYYY HH:MM:SS
+fn timestamp_with_year(input: &str) -> IResult<&str, DateTime<FixedOffset>> {
+    map(
+        tuple((
+            map_res(take(3_usize), parse_month),
+            space1,
+            digits,
+            space1,
+            digits,
+            space1,
+            digits,
+            tag(":"),
+            digits,
+            tag(":"),
+            digits,
+            opt(tag(":")),
+        )),
+        |(month, _, date, _, year, _, hour, _, minute, _, seconds, _)| {
+            FixedOffset::west(0)
+                .ymd(year, month, date)
+                .and_hms(hour, minute, seconds)
+        },
+    )(input)
+}
 
 /// Makes a timestamp given all the fields of the date less the year
 /// and a function to resolve the year.
@@ -73,52 +91,56 @@ where
 }
 
 /// Parse the timestamp, either with year or without.
-fn timestamp<F>(input: &str, get_year: F) -> IResult<&str, DateTime<FixedOffset>>
+fn timestamp<F>(get_year: F) -> impl Fn(&str) -> IResult<&str, DateTime<FixedOffset>>
 where
-    F: FnOnce(IncompleteDate) -> i32,
+    F: FnOnce(IncompleteDate) -> i32 + Copy,
 {
-    alt!(
-        input,
-        do_parse!(ts: timestamp_no_year >> (make_timestamp(ts, get_year))) | timestamp_with_year
-    )
+    move |input| {
+        alt((
+            map(timestamp_no_year, |ts| make_timestamp(ts, get_year)),
+            timestamp_with_year,
+        ))(input)
+    }
 }
 
 // Parse the tag - a process name optionally followed by a pid in [].
-named!(pub(crate) tag(&str) -> (&str, Option<&str>),
-       do_parse!(
-           tag: take_while!(|c: char| !c.is_whitespace() && c != ':' && c != '[') >>
-           pid: opt!(delimited!( char!('['),
-                                 is_not!("]"),
-                                 char!(']') )) >>
-               ( tag, pid )
-       ));
+pub(crate) fn systag(input: &str) -> IResult<&str, (&str, Option<&str>)> {
+    map(
+        tuple((
+            take_while(|c: char| !c.is_whitespace() && c != ':' && c != '['),
+            opt(delimited(tag("["), is_not("]"), tag("]"))),
+        )),
+        |(tag, pid)| (tag, pid),
+    )(input)
+}
 
 /// Parses the header.
 /// Fails if it cant parse a 3164 format header.
 pub fn header<F>(input: &str, get_year: F) -> IResult<&str, Header>
 where
-    F: FnOnce(IncompleteDate) -> i32,
+    F: FnOnce(IncompleteDate) -> i32 + Copy,
 {
-    do_parse!(
-        input,
-        pri: pri
-            >> opt!(space0)
-            >> timestamp: call!(timestamp, get_year)
-            >> hostname: opt!(preceded!(space1, hostname))
-            >> tag: opt!(preceded!(space1, tag))
-            >> opt!(tag!(":"))
-            >> opt!(space0)
-            >> (Header {
-                facility: pri.0,
-                severity: pri.1,
-                timestamp: Some(timestamp),
-                hostname: hostname.flatten(),
-                version: None,
-                appname: tag.map(|(appname, _)| appname),
-                procid: tag.and_then(|(_, pid)| pid),
-                msgid: None,
-            })
-    )
+    map(
+        tuple((
+            pri,
+            opt(space0),
+            timestamp(get_year),
+            opt(preceded(space1, hostname)),
+            opt(preceded(space1, systag)),
+            opt(tag(":")),
+            opt(space0),
+        )),
+        |(pri, _, timestamp, hostname, tag, _, _)| Header {
+            facility: pri.0,
+            severity: pri.1,
+            timestamp: Some(timestamp),
+            hostname: hostname.flatten(),
+            version: None,
+            appname: tag.map(|(appname, _)| appname),
+            procid: tag.and_then(|(_, pid)| pid),
+            msgid: None,
+        },
+    )(input)
 }
 
 #[test]
@@ -137,12 +159,10 @@ fn parse_timestamp_3164_trailing_colon() {
     );
 }
 
-
-
 #[test]
 fn parse_timestamp_with_year_3164() {
     assert_eq!(
-        timestamp("Dec 28 2008 16:49:07 ", |_| 2019).unwrap(),
+        timestamp(|_| 2019)("Dec 28 2008 16:49:07 ",).unwrap(),
         (
             " ",
             FixedOffset::west(0).ymd(2008, 12, 28).and_hms(16, 49, 07)
@@ -152,12 +172,12 @@ fn parse_timestamp_with_year_3164() {
 
 #[test]
 fn parse_tag_with_pid() {
-    assert_eq!(tag("app[23]").unwrap(), ("", ("app", Some("23"))));
+    assert_eq!(systag("app[23]").unwrap(), ("", ("app", Some("23"))));
 }
 
 #[test]
 fn parse_tag_without_pid() {
-    assert_eq!(tag("app ").unwrap(), (" ", ("app", None)));
+    assert_eq!(systag("app ").unwrap(), (" ", ("app", None)));
 }
 
 #[cfg(test)]
