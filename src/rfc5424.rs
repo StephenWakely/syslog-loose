@@ -74,12 +74,6 @@ fn parse_timestamp_5424() {
     )
 }
 
-named!(esc(&str) -> &str,
-       escaped!(
-           take_while1!(|c: char| c.is_numeric() )
-       , '\\', one_of!("\"n\\")
-       ));
-
 #[cfg(test)]
 mod tests {
     use super::*;
