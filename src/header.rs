@@ -15,3 +15,19 @@ pub struct Header<'a> {
     pub msgid: Option<&'a str>,
 }
 
+impl<'a> Header<'a> {
+    /// Create an empty header
+    pub fn new() -> Self {
+        Header {
+            facility: None,
+            severity: None,
+            version: None,
+            timestamp: None,
+            hostname: None,
+            appname: None,
+            procid: None,
+            msgid:  None,
+        }
+    }
+}
+

@@ -10,7 +10,7 @@ mod rfc5424;
 mod structured_data;
 mod timestamp;
 
-use crate::{error::ParseError, header::Header};
+use crate::header::Header;
 use chrono::prelude::*;
 use nom::{character::complete::space0, IResult};
 
@@ -31,6 +31,7 @@ pub struct Message<'a> {
     pub msg: &'a str,
 }
 
+/// Attempt to parse 5424 first, if this fails move on to 3164.
 fn parse<F>(input: &str, get_year: F) -> IResult<&str, Message>
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
@@ -75,12 +76,20 @@ where
 /// * get_year - a function that is called if the parsed message contains a date with no year.
 ///              the function takes a (month, date, hour, minute, second) tuple and should return the year to use.
 ///
-pub fn parse_message_with_year<F>(input: &str, get_year: F) -> Result<Message, ParseError>
+pub fn parse_message_with_year<F>(input: &str, get_year: F) -> Message
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
 {
-    let (_, result) = parse(input, get_year).map_err(ParseError)?;
-    Ok(result)
+    parse(input, get_year).map(|(_, result)| result).unwrap_or(
+        // If we fail to parse, the entire input becomes the message
+        // the rest of the fields are empty.
+        Message {
+            header: Header::new(),
+            protocol: Protocol::RFC3164,
+            structured_data: vec![],
+            msg: input,
+        },
+    )
 }
 
 /// Parses the message.
@@ -91,7 +100,7 @@ where
 ///
 /// * input - the string containing the message.
 ///
-pub fn parse_message(input: &str) -> Result<Message, ParseError> {
+pub fn parse_message(input: &str) -> Message {
     parse_message_with_year(input, |_| Utc::now().year())
 }
 
@@ -113,7 +122,7 @@ mod tests {
         let msg = "<190>Dec 28 16:49:07 plertrood-thinkpad-x220 nginx: 127.0.0.1 - - [28/Dec/2019:16:49:07 +0000] \"GET / HTTP/1.1\" 304 0 \"-\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0\"";
 
         assert_eq!(
-            parse_message_with_year(msg, with_year).unwrap(),
+            parse_message_with_year(msg, with_year),
             Message {
                 header: Header {
                     facility: Some(SyslogFacility::LOG_LOCAL7),
@@ -138,7 +147,7 @@ mod tests {
         let msg = "<46>Jan  5 15:33:03 plertrood-ThinkPad-X220 rsyslogd:  [origin software=\"rsyslogd\" swVersion=\"8.32.0\" x-pid=\"20506\" x-info=\"http://www.rsyslog.com\"] start";
 
         assert_eq!(
-            parse_message_with_year(msg, with_year).unwrap(),
+            parse_message_with_year(msg, with_year),
             Message {
                 header: Header {
                     facility: Some(SyslogFacility::LOG_SYSLOG),
@@ -174,7 +183,7 @@ mod tests {
         // haproxy doesnt include the hostname.
         let msg = "<133>Jan 13 16:33:35 haproxy[73411]: Proxy sticky-servers started.";
         assert_eq!(
-            parse_message_with_year(msg, with_year).unwrap(),
+            parse_message_with_year(msg, with_year),
             Message {
                 header: Header {
                     facility: Some(SyslogFacility::LOG_LOCAL0),
@@ -202,7 +211,7 @@ mod tests {
         let msg = "<34>1 2003-10-11T22:14:15.003Z mymachine.example.com su - ID47 - BOM'su root' failed for lonvick on /dev/pts/8";
 
         assert_eq!(
-            parse_message(msg).unwrap(),
+            parse_message(msg),
             Message {
                 header: Header {
                     facility: Some(SyslogFacility::LOG_AUTH),
@@ -230,7 +239,7 @@ mod tests {
         let msg = "<165>1 2003-10-11T22:14:15.003Z mymachine.example.com evntslog - ID47 [exampleSDID@32473 iut=\"3\" eventSource=\"Application\" eventID=\"1011\"] BOMAn application event log entry...";
 
         assert_eq!(
-            parse_message(msg).unwrap(),
+            parse_message(msg),
             Message {
                 header: Header {
                     facility: Some(SyslogFacility::LOG_LOCAL4),
@@ -265,7 +274,7 @@ mod tests {
         let msg = "<165>1 2003-10-11T22:14:15.003Z mymachine.example.com evntslog - ID47 [exampleSDID@32473 iut=\"3\" eventSource= \"Application\" eventID=\"1011\"][examplePriority@32473 class=\"high\"] BOMAn application event log entry...";
 
         assert_eq!(
-            parse_message(msg).unwrap(),
+            parse_message(msg),
             Message {
                 header: Header {
                     facility: Some(SyslogFacility::LOG_LOCAL4),
@@ -307,7 +316,7 @@ mod tests {
         // Remove the id from the rsyslog messages structured data. This should now go into the msg.
         let msg = "<46>Jan  5 15:33:03 plertrood-ThinkPad-X220 rsyslogd:  [software=\"rsyslogd\" swVersion=\"8.32.0\" x-pid=\"20506\" x-info=\"http://www.rsyslog.com\"] start";
 
-        assert_eq!(parse_message_with_year(msg, with_year).unwrap(),
+        assert_eq!(parse_message_with_year(msg, with_year),
                    Message {
                        header: Header {
                            facility: Some(SyslogFacility::LOG_SYSLOG),
@@ -334,7 +343,7 @@ mod tests {
         let msg = "<46>Jan 5 10:01:00 Übergröße außerplanmäßig größenordnungsmäßig";
 
         assert_eq!(
-            parse_message_with_year(msg, with_year).unwrap(),
+            parse_message_with_year(msg, with_year),
             Message {
                 header: Header {
                     facility: Some(SyslogFacility::LOG_SYSLOG),
@@ -353,6 +362,30 @@ mod tests {
                 protocol: Protocol::RFC3164,
                 structured_data: vec![],
                 msg: "größenordnungsmäßig",
+            }
+        );
+    }
+
+    #[test]
+    fn parse_invalid_message() {
+        let msg = "complete and utter gobbledegook";
+
+        assert_eq!(
+            parse_message_with_year(msg, with_year),
+            Message {
+                header: Header {
+                    facility: None,
+                    severity: None,
+                    version: None,
+                    timestamp: None,
+                    hostname: None,
+                    appname: None,
+                    procid: None,
+                    msgid: None,
+                },
+                protocol: Protocol::RFC3164,
+                structured_data: vec![],
+                msg: "complete and utter gobbledegook",
             }
         );
     }
