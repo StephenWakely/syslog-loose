@@ -17,7 +17,7 @@ where
 
 /// Parse either a string up to white space or a ':'.
 /// If the string is '-' this is taken to be an empty value.
-fn optional(input: &str) -> IResult<&str, Option<&str>> {
+pub(crate) fn optional(input: &str) -> IResult<&str, Option<&str>> {
     map(
         // Note we need to use the ':' as a separator between the 3164 headers and the message.
         // So the header fields can't use them. Need to be aware of this to check

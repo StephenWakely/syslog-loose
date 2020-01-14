@@ -1,7 +1,7 @@
 ///! Parsers for rfc 3164 specific formats.
 use crate::{
     header::Header,
-    parsers::{digits, hostname},
+    parsers::{digits, optional},
     pri::pri,
 };
 use chrono::prelude::*;
@@ -103,15 +103,48 @@ where
     }
 }
 
-// Parse the tag - a process name optionally followed by a pid in [].
-pub(crate) fn systag(input: &str) -> IResult<&str, (&str, Option<&str>)> {
-    map(
-        tuple((
-            take_while(|c: char| !c.is_whitespace() && c != ':' && c != '['),
-            opt(delimited(tag("["), is_not("]"), tag("]"))),
-        )),
-        |(tag, pid)| (tag, pid),
-    )(input)
+// Parse the tag - a process name followed by a pid in [].
+pub(crate) fn systag(input: &str) -> IResult<&str, (&str, &str)> {
+    tuple((
+        take_while(|c: char| !c.is_whitespace() && c != ':' && c != '['),
+        delimited(tag("["), is_not("]"), tag("]")),
+    ))(input)
+}
+
+/// Resolves the final two potential fields in the header.
+/// Sometimes, there is only one field, this may be the host or the tag.
+/// We can determine if this field is the tag only if it follows the format appname[procid].
+///
+/// Each field has three potential states :
+///   None => Means the field hasnt been specified at all.
+///   Some(None) => Means the field was specified, but was specified as being empty (with '-')
+///   Some(Some(_)) => The field was specified and given a value.
+fn resolve_host_and_tag<'a>(
+    field1: Option<Option<&'a str>>,
+    field2: Option<Option<&'a str>>,
+) -> (Option<&'a str>, Option<&'a str>, Option<&'a str>) {
+    match (field1, field2) {
+        // Both field specified, tag just needs parsing to see if there is a procid
+        (Some(host), Some(Some(tag))) => match systag(tag) {
+            Ok(("", (app, procid))) => (host, Some(app), Some(procid)),
+            _ => (host, Some(tag), None),
+        },
+
+        // Only one field specified, is this the host or the tag?
+        (Some(Some(field)), None) => match systag(field) {
+            Ok(("", (app, procid))) => (None, Some(app), Some(procid)),
+            _ => (Some(field), None, None),
+        },
+
+        // This one should never happen, but just for completeness.
+        (None, Some(Some(field))) => match systag(field) {
+            Ok(("", (app, procid))) => (None, Some(app), Some(procid)),
+            _ => (Some(field), None, None),
+        },
+
+        // No field specified.
+        _ => (None, None, None),
+    }
 }
 
 /// Parses the header.
@@ -125,20 +158,24 @@ where
             pri,
             opt(space0),
             timestamp(get_year),
-            opt(preceded(space1, hostname)),
-            opt(preceded(space1, systag)),
+            opt(preceded(space1, optional)),
+            opt(preceded(space1, optional)),
             opt(tag(":")),
             opt(space0),
         )),
-        |(pri, _, timestamp, hostname, tag, _, _)| Header {
-            facility: pri.0,
-            severity: pri.1,
-            timestamp: Some(timestamp),
-            hostname: hostname.flatten(),
-            version: None,
-            appname: tag.map(|(appname, _)| appname),
-            procid: tag.and_then(|(_, pid)| pid),
-            msgid: None,
+        |(pri, _, timestamp, field1, field2, _, _)| {
+            let (host, appname, pid) = resolve_host_and_tag(field1, field2);
+
+            Header {
+                facility: pri.0,
+                severity: pri.1,
+                timestamp: Some(timestamp),
+                hostname: host,
+                version: None,
+                appname: appname,
+                procid: pid,
+                msgid: None,
+            }
         },
     )(input)
 }
@@ -172,12 +209,12 @@ fn parse_timestamp_with_year_3164() {
 
 #[test]
 fn parse_tag_with_pid() {
-    assert_eq!(systag("app[23]").unwrap(), ("", ("app", Some("23"))));
+    assert_eq!(systag("app[23]").unwrap(), ("", ("app", "23")));
 }
 
 #[test]
 fn parse_tag_without_pid() {
-    assert_eq!(systag("app ").unwrap(), (" ", ("app", None)));
+    assert_eq!(systag("app ").is_err(), true);
 }
 
 #[cfg(test)]

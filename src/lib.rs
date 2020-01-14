@@ -167,6 +167,34 @@ mod tests {
             }
         );
     }
+    
+    #[test]
+    fn parse_haproxy () {
+        // haproxy doesnt include the hostname.
+        let msg = "<133>Jan 13 16:33:35 haproxy[73411]: Proxy sticky-servers started.";
+        assert_eq!(
+            parse_message_with_year(msg, with_year).unwrap(),
+            Message {
+                header: Header {
+                    facility: Some(SyslogFacility::LOG_LOCAL0),
+                    severity: Some(SyslogSeverity::SEV_NOTICE),
+                    version: None,
+                    timestamp: Some(
+                        FixedOffset::west(0)
+                            .ymd(2020, 1, 13)
+                            .and_hms_milli(16, 33, 35, 0)
+                    ),
+                    hostname: None,
+                    appname: Some("haproxy"),
+                    procid: Some("73411"),
+                    msgid: None,
+                },
+                protocol: Protocol::RFC3164,
+                structured_data: vec![],
+                msg: "Proxy sticky-servers started.",
+            }
+        );
+    }
 
     #[test]
     fn parse_5424_no_structured_data() {
