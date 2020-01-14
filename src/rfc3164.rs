@@ -1,107 +1,18 @@
 ///! Parsers for rfc 3164 specific formats.
 use crate::{
     header::Header,
-    parsers::{digits, optional},
+    parsers::optional,
     pri::pri,
+    timestamp::{IncompleteDate, timestamp_3164},
 };
-use chrono::prelude::*;
 use nom::{
-    branch::alt,
-    bytes::complete::{is_not, tag, take, take_while},
+    bytes::complete::{is_not, tag, take_while},
     character::complete::{space0, space1},
-    combinator::{map, map_res, opt},
+    combinator::{map, opt},
     sequence::{delimited, preceded, tuple},
     IResult,
 };
 
-/// An incomplete date is a tuple of (month, date, hour, minutes, seconds)
-pub type IncompleteDate = (u32, u32, u32, u32, u32);
-
-/// The month as a three letter string. Returns the number.
-fn parse_month(s: &str) -> Result<u32, String> {
-    match s.to_lowercase().as_ref() {
-        "jan" => Ok(1),
-        "feb" => Ok(2),
-        "mar" => Ok(3),
-        "apr" => Ok(4),
-        "may" => Ok(5),
-        "jun" => Ok(6),
-        "jul" => Ok(7),
-        "aug" => Ok(8),
-        "sep" => Ok(9),
-        "oct" => Ok(10),
-        "nov" => Ok(11),
-        "dec" => Ok(12),
-        _ => Err(format!("Invalid month {}", s)),
-    }
-}
-
-/// The timestamp for 3164 messages. MMM DD HH:MM:SS
-fn timestamp_no_year(input: &str) -> IResult<&str, IncompleteDate> {
-    map(
-        tuple((
-            map_res(take(3_usize), parse_month),
-            space1,
-            digits,
-            space1,
-            digits,
-            tag(":"),
-            digits,
-            tag(":"),
-            digits,
-            opt(tag(":")),
-        )),
-        |(month, _, date, _, hour, _, minute, _, seconds, _)| (month, date, hour, minute, seconds),
-    )(input)
-}
-
-/// Timestamp including year. MMM DD YYYY HH:MM:SS
-fn timestamp_with_year(input: &str) -> IResult<&str, DateTime<FixedOffset>> {
-    map(
-        tuple((
-            map_res(take(3_usize), parse_month),
-            space1,
-            digits,
-            space1,
-            digits,
-            space1,
-            digits,
-            tag(":"),
-            digits,
-            tag(":"),
-            digits,
-            opt(tag(":")),
-        )),
-        |(month, _, date, _, year, _, hour, _, minute, _, seconds, _)| {
-            FixedOffset::west(0)
-                .ymd(year, month, date)
-                .and_hms(hour, minute, seconds)
-        },
-    )(input)
-}
-
-/// Makes a timestamp given all the fields of the date less the year
-/// and a function to resolve the year.
-fn make_timestamp<F>((mon, d, h, min, s): IncompleteDate, get_year: F) -> DateTime<FixedOffset>
-where
-    F: FnOnce(IncompleteDate) -> i32,
-{
-    let year = get_year((mon, d, h, min, s));
-    FixedOffset::west(0).ymd(year, mon, d).and_hms(h, min, s)
-}
-
-/// Parse the timestamp, either with year or without.
-fn timestamp<F>(get_year: F) -> impl Fn(&str) -> IResult<&str, DateTime<FixedOffset>>
-where
-    F: FnOnce(IncompleteDate) -> i32 + Copy,
-{
-    move |input| {
-        alt((
-            map(timestamp_no_year, |ts| make_timestamp(ts, get_year)),
-            timestamp_with_year,
-        ))(input)
-    }
-}
 
 // Parse the tag - a process name followed by a pid in [].
 pub(crate) fn systag(input: &str) -> IResult<&str, (&str, &str)> {
@@ -136,7 +47,7 @@ fn resolve_host_and_tag<'a>(
             _ => (Some(field), None, None),
         },
 
-        // This one should never happen, but just for completeness.
+        // This one should never happen, but just for completeness...
         (None, Some(Some(field))) => match systag(field) {
             Ok(("", (app, procid))) => (None, Some(app), Some(procid)),
             _ => (Some(field), None, None),
@@ -157,7 +68,7 @@ where
         tuple((
             pri,
             opt(space0),
-            timestamp(get_year),
+            timestamp_3164(get_year),
             opt(preceded(space1, optional)),
             opt(preceded(space1, optional)),
             opt(tag(":")),
@@ -181,33 +92,6 @@ where
 }
 
 #[test]
-fn parse_timestamp_3164() {
-    assert_eq!(
-        timestamp_no_year("Dec 28 16:49:07 ").unwrap(),
-        (" ", (12, 28, 16, 49, 7))
-    );
-}
-
-#[test]
-fn parse_timestamp_3164_trailing_colon() {
-    assert_eq!(
-        timestamp_no_year("Dec 28 16:49:07:").unwrap(),
-        ("", (12, 28, 16, 49, 7))
-    );
-}
-
-#[test]
-fn parse_timestamp_with_year_3164() {
-    assert_eq!(
-        timestamp(|_| 2019)("Dec 28 2008 16:49:07 ",).unwrap(),
-        (
-            " ",
-            FixedOffset::west(0).ymd(2008, 12, 28).and_hms(16, 49, 07)
-        )
-    );
-}
-
-#[test]
 fn parse_tag_with_pid() {
     assert_eq!(systag("app[23]").unwrap(), ("", ("app", "23")));
 }
@@ -221,6 +105,7 @@ fn parse_tag_without_pid() {
 mod tests {
     use super::*;
     use crate::pri::{SyslogFacility, SyslogSeverity};
+    use chrono::prelude::*;
 
     #[test]
     fn parse_3164_header_timestamp() {
@@ -301,6 +186,29 @@ mod tests {
                     facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
                     timestamp: Some(FixedOffset::west(0).ymd(2019, 10, 11).and_hms(22, 14, 15)),
+                    hostname: Some("mymachine"),
+                    version: None,
+                    appname: Some("app"),
+                    procid: Some("323"),
+                    msgid: None,
+                }
+            )
+        );
+    }
+    
+    #[test]
+    fn parse_3164_header_3339_timestamp_host_appname_pid() {
+        assert_eq!(
+            header("<34>2020-10-11T22:14:15.00Z mymachine app[323]: a message", |_| {
+                2019
+            })
+            .unwrap(),
+            (
+                "a message",
+                Header {
+                    facility: Some(SyslogFacility::LOG_AUTH),
+                    severity: Some(SyslogSeverity::SEV_CRIT),
+                    timestamp: Some(FixedOffset::west(0).ymd(2020, 10, 11).and_hms(22, 14, 15)),
                     hostname: Some("mymachine"),
                     version: None,
                     appname: Some("app"),

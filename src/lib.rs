@@ -8,13 +8,14 @@ mod pri;
 mod rfc3164;
 mod rfc5424;
 mod structured_data;
+mod timestamp;
 
 use crate::{error::ParseError, header::Header};
 use chrono::prelude::*;
 use nom::{character::complete::space0, IResult};
 
 pub use pri::{SyslogFacility, SyslogSeverity};
-pub use rfc3164::IncompleteDate;
+pub use timestamp::IncompleteDate;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Protocol {
