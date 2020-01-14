@@ -168,9 +168,9 @@ mod tests {
             }
         );
     }
-    
+
     #[test]
-    fn parse_haproxy () {
+    fn parse_haproxy() {
         // haproxy doesnt include the hostname.
         let msg = "<133>Jan 13 16:33:35 haproxy[73411]: Proxy sticky-servers started.";
         assert_eq!(
@@ -261,6 +261,47 @@ mod tests {
     }
 
     #[test]
+    fn parse_5424_multiple_structured_data() {
+        let msg = "<165>1 2003-10-11T22:14:15.003Z mymachine.example.com evntslog - ID47 [exampleSDID@32473 iut=\"3\" eventSource= \"Application\" eventID=\"1011\"][examplePriority@32473 class=\"high\"] BOMAn application event log entry...";
+
+        assert_eq!(
+            parse_message(msg).unwrap(),
+            Message {
+                header: Header {
+                    facility: Some(SyslogFacility::LOG_LOCAL4),
+                    severity: Some(SyslogSeverity::SEV_NOTICE),
+                    version: Some(1),
+                    timestamp: Some(
+                        FixedOffset::west(0)
+                            .ymd(2003, 10, 11)
+                            .and_hms_milli(22, 14, 15, 3)
+                    ),
+                    hostname: Some("mymachine.example.com"),
+                    appname: Some("evntslog"),
+                    procid: None,
+                    msgid: Some("ID47"),
+                },
+                protocol: Protocol::RFC5424,
+                structured_data: vec![
+                    structured_data::StructuredElement {
+                        id: "exampleSDID@32473",
+                        params: vec![
+                            ("iut", "3"),
+                            ("eventSource", "Application"),
+                            ("eventID", "1011")
+                        ]
+                    },
+                    structured_data::StructuredElement {
+                        id: "examplePriority@32473",
+                        params: vec![("class", "high"),]
+                    }
+                ],
+                msg: "BOMAn application event log entry...",
+            }
+        );
+    }
+
+    #[test]
     fn parse_3164_invalid_structured_data() {
         // Can 3164 parse ok when there is something looking similar to structured data - but not quite.
         // Remove the id from the rsyslog messages structured data. This should now go into the msg.
@@ -287,32 +328,32 @@ mod tests {
                        msg: "[software=\"rsyslogd\" swVersion=\"8.32.0\" x-pid=\"20506\" x-info=\"http://www.rsyslog.com\"] start",
                    });
     }
-    
-    
+
     #[test]
     fn parse_european_chars() {
         let msg = "<46>Jan 5 10:01:00 Übergröße außerplanmäßig größenordnungsmäßig";
 
-        assert_eq!(parse_message_with_year(msg, with_year).unwrap(),
-                   Message {
-                       header: Header {
-                           facility: Some(SyslogFacility::LOG_SYSLOG),
-                           severity: Some(SyslogSeverity::SEV_INFO),
-                           version: None,
-                           timestamp: Some(
-                               FixedOffset::west(0)
-                                   .ymd(2020, 1, 5)
-                                   .and_hms_milli(10, 1, 0, 0)
-                           ),
-                           hostname: Some("Übergröße"),
-                           appname: Some("außerplanmäßig"),
-                           procid: None,
-                           msgid: None,
-                       },
-                       protocol: Protocol::RFC3164,
-                       structured_data: vec![],
-                       msg: "größenordnungsmäßig",
-                   });
-        
+        assert_eq!(
+            parse_message_with_year(msg, with_year).unwrap(),
+            Message {
+                header: Header {
+                    facility: Some(SyslogFacility::LOG_SYSLOG),
+                    severity: Some(SyslogSeverity::SEV_INFO),
+                    version: None,
+                    timestamp: Some(
+                        FixedOffset::west(0)
+                            .ymd(2020, 1, 5)
+                            .and_hms_milli(10, 1, 0, 0)
+                    ),
+                    hostname: Some("Übergröße"),
+                    appname: Some("außerplanmäßig"),
+                    procid: None,
+                    msgid: None,
+                },
+                protocol: Protocol::RFC3164,
+                structured_data: vec![],
+                msg: "größenordnungsmäßig",
+            }
+        );
     }
 }
