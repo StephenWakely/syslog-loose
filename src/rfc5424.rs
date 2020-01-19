@@ -1,13 +1,14 @@
 ///! Parsers for rfc 5424 specific formats.
 use crate::{
-    header::Header,
+    message::{Protocol, Message},
     parsers::{appname, digits, hostname, msgid, procid},
     pri::pri,
     timestamp::timestamp_3339,
+    structured_data::structured_data,
 };
 use nom::{
-    character::complete::space1,
-    combinator::map,
+    character::complete::{space0, space1},
+    combinator::{rest, map},
     sequence::tuple,
     IResult,
 };
@@ -17,22 +18,24 @@ fn version(input: &str) -> IResult<&str, u32> {
     digits(input)
 }
 
-/// Parse the full 5424 header
-pub(crate) fn header(input: &str) -> IResult<&str, Header> {
+/// Parse the message as per RFC5424
+pub(crate) fn parse(input: &str) -> IResult<&str, Message<&str>> {
     map(
         tuple((
             pri, version, space1, timestamp_3339, space1, hostname, space1, appname, space1, procid,
-            space1, msgid,
+            space1, msgid, space0, structured_data, space0, rest,
         )),
-        |(pri, version, _, timestamp, _, hostname, _, appname, _, procid, _, msgid)| Header {
+        |(pri, version, _, timestamp, _, hostname, _, appname, _, procid, _, msgid, _, structured_data, _, msg)| Message {
+            protocol: Protocol::RFC5424(version),
             facility: pri.0,
             severity: pri.1,
-            version: Some(version),
             timestamp: Some(timestamp),
             hostname,
             appname,
             procid,
             msgid,
+            structured_data,
+            msg
         },
     )(input)
 }
@@ -44,15 +47,15 @@ mod tests {
     use chrono::prelude::*;
 
     #[test]
-    fn parse_5424_header() {
+    fn parse_5424() {
         assert_eq!(
-            header("<34>1 2003-10-11T22:14:15.003Z mymachine.example.com su - ID47 ").unwrap(),
+            parse("<34>1 2003-10-11T22:14:15.003Z mymachine.example.com su - ID47 - message").unwrap(),
             (
-                " ",
-                Header {
+                "",
+                Message {
+                    protocol: Protocol::RFC5424(1),
                     facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
-                    version: Some(1),
                     timestamp: Some(
                         FixedOffset::west(0)
                             .ymd(2003, 10, 11)
@@ -62,6 +65,8 @@ mod tests {
                     appname: Some("su"),
                     procid: None,
                     msgid: Some("ID47"),
+                    structured_data: vec![],
+                    msg: "message",
                 }
             )
         )

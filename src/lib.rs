@@ -1,8 +1,13 @@
-#[macro_use]
 extern crate nom;
 
+#[cfg(test)]
+extern crate quickcheck;
+#[cfg(test)]
+#[macro_use(quickcheck)]
+extern crate quickcheck_macros;
+
 mod error;
-mod header;
+mod message;
 mod parsers;
 mod pri;
 mod rfc3164;
@@ -10,61 +15,22 @@ mod rfc5424;
 mod structured_data;
 mod timestamp;
 
-use crate::header::Header;
-use chrono::prelude::*;
-use nom::{character::complete::space0, IResult};
+#[cfg(test)]
+mod non_empty_string;
 
+use chrono::prelude::*;
+use nom::{branch::alt, IResult};
+
+pub use message::{Message, Protocol};
 pub use pri::{SyslogFacility, SyslogSeverity};
 pub use timestamp::IncompleteDate;
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Protocol {
-    RFC3164,
-    RFC5424,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct Message<'a> {
-    pub header: Header<'a>,
-    pub protocol: Protocol,
-    pub structured_data: Vec<structured_data::StructuredElement<'a>>,
-    pub msg: &'a str,
-}
-
 /// Attempt to parse 5424 first, if this fails move on to 3164.
-fn parse<F>(input: &str, get_year: F) -> IResult<&str, Message>
+fn parse<F>(input: &str, get_year: F) -> IResult<&str, Message<&str>>
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
 {
-    match rfc5424::header(input) {
-        Ok((input, header)) => {
-            let (input, _) = space0(input)?;
-            let (input, structured_data) = structured_data::structured_data(input)?;
-            let (input, _) = space0(input)?;
-            let msg = Message {
-                header,
-                protocol: Protocol::RFC5424,
-                structured_data,
-                msg: input,
-            };
-
-            Ok(("", msg))
-        }
-        Err(_) => {
-            let (input, header) = rfc3164::header(input, get_year)?;
-            let (input, _) = space0(input)?;
-            let (input, structured_data) = opt!(input, structured_data::structured_data)?;
-            let (input, _) = space0(input)?;
-            // The remaining unparsed text becomes the message body.
-            let msg = Message {
-                header,
-                protocol: Protocol::RFC3164,
-                structured_data: structured_data.unwrap_or(vec![]),
-                msg: input,
-            };
-            Ok(("", msg))
-        }
-    }
+    alt((rfc5424::parse, |input| rfc3164::parse(input, get_year)))(input)
 }
 
 ///
@@ -76,7 +42,7 @@ where
 /// * get_year - a function that is called if the parsed message contains a date with no year.
 ///              the function takes a (month, date, hour, minute, second) tuple and should return the year to use.
 ///
-pub fn parse_message_with_year<F>(input: &str, get_year: F) -> Message
+pub fn parse_message_with_year<F>(input: &str, get_year: F) -> Message<&str>
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
 {
@@ -84,7 +50,13 @@ where
         // If we fail to parse, the entire input becomes the message
         // the rest of the fields are empty.
         Message {
-            header: Header::new(),
+            facility: None,
+            severity: None,
+            timestamp: None,
+            hostname: None,
+            appname: None,
+            procid: None,
+            msgid: None,
             protocol: Protocol::RFC3164,
             structured_data: vec![],
             msg: input,
@@ -100,7 +72,7 @@ where
 ///
 /// * input - the string containing the message.
 ///
-pub fn parse_message(input: &str) -> Message {
+pub fn parse_message(input: &str) -> Message<&str> {
     parse_message_with_year(input, |_| Utc::now().year())
 }
 
@@ -124,16 +96,14 @@ mod tests {
         assert_eq!(
             parse_message_with_year(msg, with_year),
             Message {
-                header: Header {
+
                     facility: Some(SyslogFacility::LOG_LOCAL7),
                     severity: Some(SyslogSeverity::SEV_INFO),
-                    version: None,
                     timestamp: Some(FixedOffset::west(0).ymd(2019, 12, 28).and_hms(16, 49, 07)),
                     hostname: Some("plertrood-thinkpad-x220"),
                     appname: Some("nginx"),
                     procid: None,
                     msgid: None,
-                },
                 protocol: Protocol::RFC3164,
                 structured_data: vec![],
                 msg: "127.0.0.1 - - [28/Dec/2019:16:49:07 +0000] \"GET / HTTP/1.1\" 304 0 \"-\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0\"",
@@ -149,20 +119,17 @@ mod tests {
         assert_eq!(
             parse_message_with_year(msg, with_year),
             Message {
-                header: Header {
-                    facility: Some(SyslogFacility::LOG_SYSLOG),
-                    severity: Some(SyslogSeverity::SEV_INFO),
-                    version: None,
-                    timestamp: Some(
-                        FixedOffset::west(0)
-                            .ymd(2020, 1, 5)
-                            .and_hms_milli(15, 33, 3, 0)
-                    ),
-                    hostname: Some("plertrood-ThinkPad-X220"),
-                    appname: Some("rsyslogd"),
-                    procid: None,
-                    msgid: None,
-                },
+                facility: Some(SyslogFacility::LOG_SYSLOG),
+                severity: Some(SyslogSeverity::SEV_INFO),
+                timestamp: Some(
+                    FixedOffset::west(0)
+                        .ymd(2020, 1, 5)
+                        .and_hms_milli(15, 33, 3, 0)
+                ),
+                hostname: Some("plertrood-ThinkPad-X220"),
+                appname: Some("rsyslogd"),
+                procid: None,
+                msgid: None,
                 protocol: Protocol::RFC3164,
                 structured_data: vec![structured_data::StructuredElement {
                     id: "origin",
@@ -185,20 +152,17 @@ mod tests {
         assert_eq!(
             parse_message_with_year(msg, with_year),
             Message {
-                header: Header {
-                    facility: Some(SyslogFacility::LOG_LOCAL0),
-                    severity: Some(SyslogSeverity::SEV_NOTICE),
-                    version: None,
-                    timestamp: Some(
-                        FixedOffset::west(0)
-                            .ymd(2020, 1, 13)
-                            .and_hms_milli(16, 33, 35, 0)
-                    ),
-                    hostname: None,
-                    appname: Some("haproxy"),
-                    procid: Some("73411"),
-                    msgid: None,
-                },
+                facility: Some(SyslogFacility::LOG_LOCAL0),
+                severity: Some(SyslogSeverity::SEV_NOTICE),
+                timestamp: Some(
+                    FixedOffset::west(0)
+                        .ymd(2020, 1, 13)
+                        .and_hms_milli(16, 33, 35, 0)
+                ),
+                hostname: None,
+                appname: Some("haproxy"),
+                procid: Some("73411"),
+                msgid: None,
                 protocol: Protocol::RFC3164,
                 structured_data: vec![],
                 msg: "Proxy sticky-servers started.",
@@ -213,21 +177,18 @@ mod tests {
         assert_eq!(
             parse_message(msg),
             Message {
-                header: Header {
-                    facility: Some(SyslogFacility::LOG_AUTH),
-                    severity: Some(SyslogSeverity::SEV_CRIT),
-                    version: Some(1),
-                    timestamp: Some(
-                        FixedOffset::west(0)
-                            .ymd(2003, 10, 11)
-                            .and_hms_milli(22, 14, 15, 3)
-                    ),
-                    hostname: Some("mymachine.example.com"),
-                    appname: Some("su"),
-                    procid: None,
-                    msgid: Some("ID47"),
-                },
-                protocol: Protocol::RFC5424,
+                facility: Some(SyslogFacility::LOG_AUTH),
+                severity: Some(SyslogSeverity::SEV_CRIT),
+                timestamp: Some(
+                    FixedOffset::west(0)
+                        .ymd(2003, 10, 11)
+                        .and_hms_milli(22, 14, 15, 3)
+                ),
+                hostname: Some("mymachine.example.com"),
+                appname: Some("su"),
+                procid: None,
+                msgid: Some("ID47"),
+                protocol: Protocol::RFC5424(1),
                 structured_data: vec![],
                 msg: "BOM'su root' failed for lonvick on /dev/pts/8",
             }
@@ -241,21 +202,18 @@ mod tests {
         assert_eq!(
             parse_message(msg),
             Message {
-                header: Header {
-                    facility: Some(SyslogFacility::LOG_LOCAL4),
-                    severity: Some(SyslogSeverity::SEV_NOTICE),
-                    version: Some(1),
-                    timestamp: Some(
-                        FixedOffset::west(0)
-                            .ymd(2003, 10, 11)
-                            .and_hms_milli(22, 14, 15, 3)
-                    ),
-                    hostname: Some("mymachine.example.com"),
-                    appname: Some("evntslog"),
-                    procid: None,
-                    msgid: Some("ID47"),
-                },
-                protocol: Protocol::RFC5424,
+                facility: Some(SyslogFacility::LOG_LOCAL4),
+                severity: Some(SyslogSeverity::SEV_NOTICE),
+                timestamp: Some(
+                    FixedOffset::west(0)
+                        .ymd(2003, 10, 11)
+                        .and_hms_milli(22, 14, 15, 3)
+                ),
+                hostname: Some("mymachine.example.com"),
+                appname: Some("evntslog"),
+                procid: None,
+                msgid: Some("ID47"),
+                protocol: Protocol::RFC5424(1),
                 structured_data: vec![structured_data::StructuredElement {
                     id: "exampleSDID@32473",
                     params: vec![
@@ -276,21 +234,18 @@ mod tests {
         assert_eq!(
             parse_message(msg),
             Message {
-                header: Header {
-                    facility: Some(SyslogFacility::LOG_LOCAL4),
-                    severity: Some(SyslogSeverity::SEV_NOTICE),
-                    version: Some(1),
-                    timestamp: Some(
-                        FixedOffset::west(0)
-                            .ymd(2003, 10, 11)
-                            .and_hms_milli(22, 14, 15, 3)
-                    ),
-                    hostname: Some("mymachine.example.com"),
-                    appname: Some("evntslog"),
-                    procid: None,
-                    msgid: Some("ID47"),
-                },
-                protocol: Protocol::RFC5424,
+                facility: Some(SyslogFacility::LOG_LOCAL4),
+                severity: Some(SyslogSeverity::SEV_NOTICE),
+                timestamp: Some(
+                    FixedOffset::west(0)
+                        .ymd(2003, 10, 11)
+                        .and_hms_milli(22, 14, 15, 3)
+                ),
+                hostname: Some("mymachine.example.com"),
+                appname: Some("evntslog"),
+                procid: None,
+                msgid: Some("ID47"),
+                protocol: Protocol::RFC5424(1),
                 structured_data: vec![
                     structured_data::StructuredElement {
                         id: "exampleSDID@32473",
@@ -318,10 +273,8 @@ mod tests {
 
         assert_eq!(parse_message_with_year(msg, with_year),
                    Message {
-                       header: Header {
                            facility: Some(SyslogFacility::LOG_SYSLOG),
                            severity: Some(SyslogSeverity::SEV_INFO),
-                           version: None,
                            timestamp: Some(
                                FixedOffset::west(0)
                                    .ymd(2020, 1, 5)
@@ -331,7 +284,6 @@ mod tests {
                            appname: Some("rsyslogd"),
                            procid: None,
                            msgid: None,
-                       },
                        protocol: Protocol::RFC3164,
                        structured_data: vec![],
                        msg: "[software=\"rsyslogd\" swVersion=\"8.32.0\" x-pid=\"20506\" x-info=\"http://www.rsyslog.com\"] start",
@@ -345,20 +297,17 @@ mod tests {
         assert_eq!(
             parse_message_with_year(msg, with_year),
             Message {
-                header: Header {
-                    facility: Some(SyslogFacility::LOG_SYSLOG),
-                    severity: Some(SyslogSeverity::SEV_INFO),
-                    version: None,
-                    timestamp: Some(
-                        FixedOffset::west(0)
-                            .ymd(2020, 1, 5)
-                            .and_hms_milli(10, 1, 0, 0)
-                    ),
-                    hostname: Some("Übergröße"),
-                    appname: Some("außerplanmäßig"),
-                    procid: None,
-                    msgid: None,
-                },
+                facility: Some(SyslogFacility::LOG_SYSLOG),
+                severity: Some(SyslogSeverity::SEV_INFO),
+                timestamp: Some(
+                    FixedOffset::west(0)
+                        .ymd(2020, 1, 5)
+                        .and_hms_milli(10, 1, 0, 0)
+                ),
+                hostname: Some("Übergröße"),
+                appname: Some("außerplanmäßig"),
+                procid: None,
+                msgid: None,
                 protocol: Protocol::RFC3164,
                 structured_data: vec![],
                 msg: "größenordnungsmäßig",
@@ -373,20 +322,87 @@ mod tests {
         assert_eq!(
             parse_message_with_year(msg, with_year),
             Message {
-                header: Header {
-                    facility: None,
-                    severity: None,
-                    version: None,
-                    timestamp: None,
-                    hostname: None,
-                    appname: None,
-                    procid: None,
-                    msgid: None,
-                },
+                facility: None,
+                severity: None,
+                timestamp: None,
+                hostname: None,
+                appname: None,
+                procid: None,
+                msgid: None,
                 protocol: Protocol::RFC3164,
                 structured_data: vec![],
                 msg: "complete and utter gobbledegook",
             }
         );
+    }
+
+    #[test]
+    fn parse_blank_msg() {
+        let ook = Message {
+            facility: Some(SyslogFacility::LOG_CRON),
+            severity: Some(SyslogSeverity::SEV_ERR),
+            timestamp: Some(
+                FixedOffset::west(0)
+                    .ymd(1969, 12, 3)
+                    .and_hms_milli(23, 58, 58, 0),
+            ),
+            hostname: None,
+            appname: None,
+            procid: None,
+            msgid: None,
+            protocol: Protocol::RFC5424(1),
+            structured_data: vec![],
+            msg: "",
+        };
+
+        println!("{}", ook);
+        let msg = format!("{}", ook);
+
+        assert_eq!(
+            parse_message(&msg),
+            Message {
+                facility: Some(SyslogFacility::LOG_CRON),
+                severity: Some(SyslogSeverity::SEV_ERR),
+                timestamp: Some(
+                    FixedOffset::west(0)
+                        .ymd(1969, 12, 3)
+                        .and_hms_milli(23, 58, 58, 0),
+                ),
+                hostname: None,
+                appname: None,
+                procid: None,
+                msgid: None,
+                protocol: Protocol::RFC3164,
+                structured_data: vec![],
+                msg: "",
+            }
+        );
+    }
+    
+    /// Check if the message has an empty value.
+    /// We should just discard these as they don't make for valid tests.
+    fn has_empty_values(msg: &Message<String>) -> bool {
+        msg.appname == Some("".to_string()) ||
+            msg.hostname == Some("".to_string()) ||
+            msg.appname == Some("".to_string()) ||
+            msg.procid == Some("".to_string()) ||
+            msg.msgid == Some("".to_string()) ||
+            msg.structured_data.iter().any(|s| s.id == "")
+    }
+
+    #[quickcheck]
+    fn quickcheck_parses_generated_messages(msg: Message<String>) -> quickcheck::TestResult {
+        if has_empty_values(&msg) {
+            return quickcheck::TestResult::discard();
+        }
+        
+        // Display the message.
+        let text = format!("{}", msg);
+
+        // Parse it.
+        let parsed = parse_message(&text);
+
+        // Do we still have the same message?
+        quickcheck::TestResult::from_bool(msg == parsed.into())
     }
 }

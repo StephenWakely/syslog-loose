@@ -1,17 +1,10 @@
 use crate::parsers::digits;
-use nom::{
-    bytes::complete::tag,
-    combinator::map,
-    sequence::delimited,
-    IResult,
-};
-
-
+use nom::{bytes::complete::tag, combinator::map, sequence::delimited, IResult};
 
 // Taken from https://github.com/Roguelazer/rust-syslog-rfc5424/blob/af76363081314f91433e014c76fd834acef756d5/src/facility.rs
 // Many thanks.
 
-#[derive(Copy,Clone,Debug,PartialEq, Eq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Ord, PartialOrd)]
 #[allow(non_camel_case_types)]
 /// Syslog facilities. Taken From RFC 5424, but I've heard that some platforms mix these around.
 /// Names are from Linux.
@@ -105,11 +98,10 @@ impl SyslogFacility {
     }
 }
 
-
 // Taken from https://github.com/Roguelazer/rust-syslog-rfc5424/blob/af76363081314f91433e014c76fd834acef756d5/src/severity.rs
 // Many thanks!
 
-#[derive(Copy,Clone,Debug,PartialEq,Eq,PartialOrd,Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[allow(non_camel_case_types)]
 /// Syslog Severities from RFC 5424.
 pub enum SyslogSeverity {
@@ -152,50 +144,59 @@ impl SyslogSeverity {
             SyslogSeverity::SEV_WARNING => "warning",
             SyslogSeverity::SEV_NOTICE => "notice",
             SyslogSeverity::SEV_INFO => "info",
-            SyslogSeverity::SEV_DEBUG => "debug"
+            SyslogSeverity::SEV_DEBUG => "debug",
         }
     }
 }
 
 /// The pri field is composed of both the facility and severity values.
 /// The first byte is the Severity, the remaining are the Facility.
-fn decompose_pri(pri: i32) -> (Option<SyslogFacility>, Option<SyslogSeverity>) {
+pub(crate) fn decompose_pri(pri: u8) -> (Option<SyslogFacility>, Option<SyslogSeverity>) {
     let facility = pri >> 3;
     let severity = pri & 0x7;
-    
-    ( SyslogFacility::from_int(facility),
-      SyslogSeverity::from_int(severity)
+
+    (
+        SyslogFacility::from_int(facility as i32),
+        SyslogSeverity::from_int(severity as i32),
     )
 }
 
+/// Compose the facility and severity as a single integer.
+pub(crate) fn compose_pri(facility: SyslogFacility, severity: SyslogSeverity) -> i32 {
+    ((facility as i32) << 3) + (severity as i32)
+}
 
 // The message priority. An integer surrounded by <>
 // This number contains both the facility and the severity.
 pub(crate) fn pri(input: &str) -> IResult<&str, (Option<SyslogFacility>, Option<SyslogSeverity>)> {
-    delimited (
-        tag("<"),
-        map( digits,
-             |pri| decompose_pri(pri)),
-        tag(">")
-    )(input)
+    delimited(tag("<"), map(digits, |pri| decompose_pri(pri)), tag(">"))(input)
 }
 
+#[test]
+fn test_pri_composes() {
+    assert_eq!(
+        compose_pri(SyslogFacility::LOG_LOCAL4, SyslogSeverity::SEV_NOTICE),
+        165
+    );
+}
 
 #[test]
 fn test_pri_decomposes() {
     assert_eq!(
         decompose_pri(0),
-        (Some(SyslogFacility::LOG_KERN),
-         Some(SyslogSeverity::SEV_EMERG))
+        (
+            Some(SyslogFacility::LOG_KERN),
+            Some(SyslogSeverity::SEV_EMERG)
+        )
     );
-    
+
     assert_eq!(
         decompose_pri(165),
-        (Some(SyslogFacility::LOG_LOCAL4),
-         Some(SyslogSeverity::SEV_NOTICE))
+        (
+            Some(SyslogFacility::LOG_LOCAL4),
+            Some(SyslogSeverity::SEV_NOTICE)
+        )
     );
-    
-    
 }
 
 #[cfg(test)]
@@ -204,6 +205,15 @@ mod tests {
 
     #[test]
     fn parse_pri() {
-        assert_eq!(pri("<34>").unwrap(), ("", (Some(SyslogFacility::LOG_AUTH), Some(SyslogSeverity::SEV_CRIT))));
+        assert_eq!(
+            pri("<34>").unwrap(),
+            (
+                "",
+                (
+                    Some(SyslogFacility::LOG_AUTH),
+                    Some(SyslogSeverity::SEV_CRIT)
+                )
+            )
+        );
     }
 }

@@ -1,18 +1,18 @@
 ///! Parsers for rfc 3164 specific formats.
 use crate::{
-    header::Header,
+    message::{Message, Protocol},
     parsers::optional,
     pri::pri,
-    timestamp::{IncompleteDate, timestamp_3164},
+    structured_data::structured_data,
+    timestamp::{timestamp_3164, IncompleteDate},
 };
 use nom::{
     bytes::complete::{is_not, tag, take_while},
     character::complete::{space0, space1},
-    combinator::{map, opt},
+    combinator::{map, opt, rest},
     sequence::{delimited, preceded, tuple},
     IResult,
 };
-
 
 // Parse the tag - a process name followed by a pid in [].
 pub(crate) fn systag(input: &str) -> IResult<&str, (&str, &str)> {
@@ -58,9 +58,8 @@ fn resolve_host_and_tag<'a>(
     }
 }
 
-/// Parses the header.
-/// Fails if it cant parse a 3164 format header.
-pub fn header<F>(input: &str, get_year: F) -> IResult<&str, Header>
+/// Parses the message as per RFC3164.
+pub fn parse<F>(input: &str, get_year: F) -> IResult<&str, Message<&str>>
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
 {
@@ -73,19 +72,24 @@ where
             opt(preceded(space1, optional)),
             opt(tag(":")),
             opt(space0),
+            opt(structured_data),
+            opt(space0),
+            rest,
         )),
-        |(pri, _, timestamp, field1, field2, _, _)| {
+        |(pri, _, timestamp, field1, field2, _, _, structured_data, _, msg)| {
             let (host, appname, pid) = resolve_host_and_tag(field1, field2);
 
-            Header {
+            Message {
+                protocol: Protocol::RFC3164,
                 facility: pri.0,
                 severity: pri.1,
                 timestamp: Some(timestamp),
                 hostname: host,
-                version: None,
                 appname: appname,
                 procid: pid,
                 msgid: None,
+                structured_data: structured_data.unwrap_or(vec![]),
+                msg,
             }
         },
     )(input)
@@ -108,7 +112,7 @@ mod tests {
     use chrono::prelude::*;
 
     #[test]
-    fn parse_3164_header_timestamp() {
+    fn parse_3164_timestamp() {
         /*
         Note the requirement for there to be a : to separate the header and the message.
         I can't see a way around this. a is a valid hostname and message is a valid appname..
@@ -116,104 +120,115 @@ mod tests {
         Are there any significant systems that will send a syslog like this?
         */
         assert_eq!(
-            header("<34>Oct 11 22:14:15 : a message", |_| 2019).unwrap(),
+            parse("<34>Oct 11 22:14:15 : a message", |_| 2019).unwrap(),
             (
-                "a message",
-                Header {
+                "",
+                Message {
+                    protocol: Protocol::RFC3164,
                     facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
                     timestamp: Some(FixedOffset::west(0).ymd(2019, 10, 11).and_hms(22, 14, 15)),
                     hostname: None,
-                    version: None,
                     appname: None,
                     procid: None,
                     msgid: None,
+                    structured_data: vec![],
+                    msg: "a message",
                 }
             )
         );
     }
 
     #[test]
-    fn parse_3164_header_timestamp_uppercase() {
+    fn parse_3164_timestamp_uppercase() {
         assert_eq!(
-            header("<34>OCT 11 22:14:15 : a message", |_| 2019).unwrap(),
+            parse("<34>OCT 11 22:14:15 : a message", |_| 2019).unwrap(),
             (
-                "a message",
-                Header {
+                "",
+                Message {
+                    protocol: Protocol::RFC3164,
                     facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
                     timestamp: Some(FixedOffset::west(0).ymd(2019, 10, 11).and_hms(22, 14, 15)),
                     hostname: None,
-                    version: None,
                     appname: None,
                     procid: None,
                     msgid: None,
+                    structured_data: vec![],
+                    msg: "a message",
                 }
             )
         );
     }
 
     #[test]
-    fn parse_3164_header_timestamp_host() {
+    fn parse_3164_timestamp_host() {
         assert_eq!(
-            header("<34>Oct 11 22:14:15 mymachine: a message", |_| 2019).unwrap(),
+            parse("<34>Oct 11 22:14:15 mymachine: a message", |_| 2019).unwrap(),
             (
-                "a message",
-                Header {
+                "",
+                Message {
+                    protocol: Protocol::RFC3164,
                     facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
                     timestamp: Some(FixedOffset::west(0).ymd(2019, 10, 11).and_hms(22, 14, 15)),
                     hostname: Some("mymachine"),
-                    version: None,
                     appname: None,
                     procid: None,
                     msgid: None,
+                    structured_data: vec![],
+                    msg: "a message",
                 }
             )
         );
     }
 
     #[test]
-    fn parse_3164_header_timestamp_host_appname_pid() {
+    fn parse_3164_timestamp_host_appname_pid() {
         assert_eq!(
-            header("<34>Oct 11 22:14:15 mymachine app[323]: a message", |_| {
+            parse("<34>Oct 11 22:14:15 mymachine app[323]: a message", |_| {
                 2019
             })
             .unwrap(),
             (
-                "a message",
-                Header {
+                "",
+                Message {
+                    protocol: Protocol::RFC3164,
                     facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
                     timestamp: Some(FixedOffset::west(0).ymd(2019, 10, 11).and_hms(22, 14, 15)),
                     hostname: Some("mymachine"),
-                    version: None,
                     appname: Some("app"),
                     procid: Some("323"),
                     msgid: None,
+                    structured_data: vec![],
+                    msg: "a message",
                 }
             )
         );
     }
-    
+
     #[test]
-    fn parse_3164_header_3339_timestamp_host_appname_pid() {
+    fn parse_3164_3339_timestamp_host_appname_pid() {
         assert_eq!(
-            header("<34>2020-10-11T22:14:15.00Z mymachine app[323]: a message", |_| {
-                2019
-            })
+            parse(
+                "<34>2020-10-11T22:14:15.00Z mymachine app[323]: a message",
+                |_| { 2019 }
+            )
             .unwrap(),
             (
-                "a message",
-                Header {
+                "",
+                Message {
+                    protocol: Protocol::RFC3164,
                     facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
                     timestamp: Some(FixedOffset::west(0).ymd(2020, 10, 11).and_hms(22, 14, 15)),
                     hostname: Some("mymachine"),
-                    version: None,
                     appname: Some("app"),
                     procid: Some("323"),
                     msgid: None,
+                    structured_data: vec![],
+                    msg: "a message",
                 }
             )
         );
