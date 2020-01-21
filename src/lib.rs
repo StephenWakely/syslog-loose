@@ -391,6 +391,7 @@ mod tests {
     }
 
     #[quickcheck]
+    #[ignore]
     fn quickcheck_parses_generated_messages(msg: Message<String>) -> quickcheck::TestResult {
         if has_empty_values(&msg) {
             return quickcheck::TestResult::discard();
