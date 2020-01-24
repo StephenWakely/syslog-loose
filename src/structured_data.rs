@@ -1,6 +1,6 @@
 use nom::{
     branch::alt,
-    bytes::complete::{escaped, tag, take_till1, take_until, take_while1},
+    bytes::complete::{escaped, tag, take_till1, take_while1},
     character::complete::{one_of, space0},
     combinator::map,
     multi::{many1, separated_list},
@@ -22,7 +22,7 @@ impl<S: AsRef<str> + Ord + Clone> fmt::Display for StructuredElement<S> {
         write!(f, "[{}", self.id.as_ref())?;
 
         for (name, value) in &self.params {
-            write!(f, " {}={}", name.as_ref(), value.as_ref())?;
+            write!(f, " {}=\"{}\"", name.as_ref(), value.as_ref())?;
         }
 
         write!(f, "]")
@@ -96,7 +96,11 @@ fn param_value(input: &str) -> IResult<&str, &str> {
 
 /// Parse a param name="value"
 fn param(input: &str) -> IResult<&str, (&str, &str)> {
-    separated_pair(take_until("="), terminated(tag("="), space0), param_value)(input)
+    separated_pair(
+        take_till1(|c: char| c == ']' || c == '='),
+        terminated(tag("="), space0),
+        param_value,
+    )(input)
 }
 
 /// Parse a single structured data record.
@@ -216,5 +220,25 @@ mod tests {
                 ]
             )
         );
+    }
+
+    #[test]
+    fn parse_multiple_structured_data_first_item_id_only() {
+        assert_eq!(
+            structured_data("[abc][id aa=\"bb\"]").unwrap(),
+            (
+                "",
+                vec![
+                    StructuredElement {
+                        id: "abc",
+                        params: vec![],
+                    },
+
+                        id: "id",
+                        params: vec![("aa", "bb")],
+                    },
+                ]
+            )
+        )
     }
 }
