@@ -1,3 +1,5 @@
+#[cfg(test)]
+use crate::non_empty_string::{NoColonString};
 use crate::pri::{compose_pri, SyslogFacility, SyslogSeverity};
 use crate::structured_data;
 use chrono::prelude::*;
@@ -120,6 +122,7 @@ impl From<Message<&str>> for Message<String> {
 impl Arbitrary for Message<String> {
     fn arbitrary<G: Gen>(g: &mut G) -> Message<String> {
         let (facility, severity) = decompose_pri(Arbitrary::arbitrary(g));
+        let msg: String = Arbitrary::arbitrary(g);
 
         Message {
             facility,
@@ -131,7 +134,7 @@ impl Arbitrary for Message<String> {
             msgid: gen_str(g),
             protocol: Protocol::RFC5424(1),
             structured_data: Arbitrary::arbitrary(g),
-            msg: Arbitrary::arbitrary(g),
+            msg: msg.trim().into(),
         }
     }
 
@@ -143,10 +146,10 @@ impl Arbitrary for Message<String> {
  
         Box::new(
             (
-                self.hostname.clone(),
-                self.appname.clone(),
-                self.procid.clone(),
-                self.msgid.clone(),
+                self.hostname.clone().map(NoColonString),
+                self.appname.clone().map(NoColonString),
+                self.procid.clone().map(NoColonString),
+                self.msgid.clone().map(NoColonString),
                 self.structured_data.clone(),
                 self.msg.clone(),
             )
@@ -155,13 +158,13 @@ impl Arbitrary for Message<String> {
                     facility,
                     severity,
                     timestamp,
-                    hostname,
-                    appname,
-                    procid,
-                    msgid,
+                    hostname: hostname.clone().map(|s| s.get_str()),
+                    appname: appname.clone().map(|s| s.get_str()),
+                    procid: procid.clone().map(|s| s.get_str()),
+                    msgid: msgid.clone().map(|s| s.get_str()),
                     protocol: protocol.clone(),
                     structured_data,
-                    msg,
+                    msg: msg.trim().into(),
                 }),
         )
     }

@@ -378,32 +378,25 @@ mod tests {
             }
         );
     }
-    
-    /// Check if the message has an empty value.
-    /// We should just discard these as they don't make for valid tests.
-    fn has_empty_values(msg: &Message<String>) -> bool {
-        msg.appname == Some("".to_string()) ||
-            msg.hostname == Some("".to_string()) ||
-            msg.appname == Some("".to_string()) ||
-            msg.procid == Some("".to_string()) ||
-            msg.msgid == Some("".to_string()) ||
-            msg.structured_data.iter().any(|s| s.id == "")
-    }
 
     #[quickcheck]
     #[ignore]
     fn quickcheck_parses_generated_messages(msg: Message<String>) -> quickcheck::TestResult {
-        if has_empty_values(&msg) {
-            return quickcheck::TestResult::discard();
-        }
-        
         // Display the message.
         let text = format!("{}", msg);
 
         // Parse it.
         let parsed = parse_message(&text);
+        let parsed = parsed.into();
+        let result = msg == parsed;
 
+        if !result {
+            println!("{:#?}", msg);
+            println!("{}", text);
+            println!("{:#?}", parsed);
+        }
+        
         // Do we still have the same message?
-        quickcheck::TestResult::from_bool(msg == parsed.into())
+        quickcheck::TestResult::from_bool(result)
     }
 }
