@@ -233,7 +233,7 @@ mod tests {
                         id: "abc",
                         params: vec![],
                     },
-
+                    StructuredElement {
                         id: "id",
                         params: vec![("aa", "bb")],
                     },
