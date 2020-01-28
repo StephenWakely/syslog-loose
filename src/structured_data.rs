@@ -1,5 +1,3 @@
-#[cfg(test)]
-use crate::non_empty_string::{NameString, ValueString};
 use nom::{
     branch::alt,
     bytes::complete::{escaped, tag, take_till1, take_while1},
@@ -9,8 +7,6 @@ use nom::{
     sequence::{delimited, separated_pair, terminated, tuple},
     IResult,
 };
-#[cfg(test)]
-use quickcheck::{Arbitrary, Gen};
 use std::fmt;
 
 #[derive(Clone, Debug, Eq)]
@@ -107,48 +103,6 @@ fn structured_datum(input: &str) -> IResult<&str, StructuredElement<&str>> {
 /// Parse multiple structured data elements.
 pub(crate) fn structured_data(input: &str) -> IResult<&str, Vec<StructuredElement<&str>>> {
     alt((map(tag("-"), |_| vec![]), many1(structured_datum)))(input)
-}
-
-#[cfg(test)]
-impl Arbitrary for StructuredElement<String> {
-    fn arbitrary<G: Gen>(g: &mut G) -> StructuredElement<String> {
-        let params: Vec<(NameString, ValueString)> = Arbitrary::arbitrary(g);
-        let id: NameString = Arbitrary::arbitrary(g);
-
-        StructuredElement {
-            id: id.get_str(),
-            params: params
-                .iter()
-                .map(|(key, value)| (key.clone().get_str(), value.clone().get_str()))
-                .collect(),
-        }
-    }
-
-    fn shrink(&self) -> Box<dyn Iterator<Item = StructuredElement<String>>> {
-        Box::new(
-            (
-                NameString(self.id.clone()),
-                self.params
-                    .iter()
-                    .map(|(name, value)| ((NameString(name.clone()), ValueString(value.clone()))))
-                    .collect(),
-            )
-                .shrink()
-                .map(
-                    |(id, params): (NameString, Vec<(NameString, ValueString)>)| {
-                        StructuredElement {
-                            id: id.get_str(),
-                            params: params
-                                .iter()
-                                .map(|(name, value)| {
-                                    (name.clone().get_str(), value.clone().get_str())
-                                })
-                                .collect(),
-                        }
-                    },
-                ),
-        )
-    }
 }
 
 #[test]

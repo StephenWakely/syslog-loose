@@ -35,6 +35,7 @@ pub(crate) fn gen_str<G: Gen>(g: &mut G) -> Option<String> {
     value.map(|s| s.get_str())
 }
 
+
 macro_rules! arbitrary_string {
     ($name: ident, $filter: expr) => {
         #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]

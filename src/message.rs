@@ -1,17 +1,8 @@
-#[cfg(test)]
-use crate::non_empty_string::{NoColonString};
 use crate::pri::{compose_pri, SyslogFacility, SyslogSeverity};
 use crate::structured_data;
 use chrono::prelude::*;
 use std::fmt;
 
-
-#[cfg(test)]
-use crate::non_empty_string::gen_str;
-#[cfg(test)]
-use crate::pri::decompose_pri;
-#[cfg(test)]
-use quickcheck::{Arbitrary, Gen};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Protocol {
@@ -118,54 +109,3 @@ impl From<Message<&str>> for Message<String> {
 
 
 
-#[cfg(test)]
-impl Arbitrary for Message<String> {
-    fn arbitrary<G: Gen>(g: &mut G) -> Message<String> {
-        let (facility, severity) = decompose_pri(Arbitrary::arbitrary(g));
-        let msg: String = Arbitrary::arbitrary(g);
-
-        Message {
-            facility,
-            severity,
-            timestamp: Some(Utc.timestamp(Arbitrary::arbitrary(g), 0).into()),
-            hostname: gen_str(g),
-            appname: gen_str(g),
-            procid: gen_str(g),
-            msgid: gen_str(g),
-            protocol: Protocol::RFC5424(1),
-            structured_data: Arbitrary::arbitrary(g),
-            msg: msg.trim().into(),
-        }
-    }
-
-    fn shrink(&self) -> Box<dyn Iterator<Item = Message<String>>> {
-        let timestamp = self.timestamp;
-        let facility = self.facility;
-        let severity = self.severity;
-        let protocol = self.protocol.clone();
- 
-        Box::new(
-            (
-                self.hostname.clone().map(NoColonString),
-                self.appname.clone().map(NoColonString),
-                self.procid.clone().map(NoColonString),
-                self.msgid.clone().map(NoColonString),
-                self.structured_data.clone(),
-                self.msg.clone(),
-            )
-                .shrink()
-                .map(move |(hostname, appname, procid, msgid, structured_data, msg)| Message {
-                    facility,
-                    severity,
-                    timestamp,
-                    hostname: hostname.clone().map(|s| s.get_str()),
-                    appname: appname.clone().map(|s| s.get_str()),
-                    procid: procid.clone().map(|s| s.get_str()),
-                    msgid: msgid.clone().map(|s| s.get_str()),
-                    protocol: protocol.clone(),
-                    structured_data,
-                    msg: msg.trim().into(),
-                }),
-        )
-    }
-}

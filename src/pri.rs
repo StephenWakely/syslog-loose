@@ -151,7 +151,7 @@ impl SyslogSeverity {
 
 /// The pri field is composed of both the facility and severity values.
 /// The first byte is the Severity, the remaining are the Facility.
-pub(crate) fn decompose_pri(pri: u8) -> (Option<SyslogFacility>, Option<SyslogSeverity>) {
+pub fn decompose_pri(pri: u8) -> (Option<SyslogFacility>, Option<SyslogSeverity>) {
     let facility = pri >> 3;
     let severity = pri & 0x7;
 
