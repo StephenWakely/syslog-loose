@@ -30,7 +30,7 @@ impl<S: AsRef<str> + Ord + PartialEq + Clone> fmt::Display for Message<S> {
         
         write!(
             f,
-            "<{}>{} {} {} {} {} {} ",
+            "<{}>{} {} {} ",
             compose_pri(
                 self.facility.unwrap_or(SyslogFacility::LOG_SYSLOG),
                 self.severity.unwrap_or(SyslogSeverity::SEV_DEBUG)
@@ -43,32 +43,51 @@ impl<S: AsRef<str> + Ord + PartialEq + Clone> fmt::Display for Message<S> {
             self.hostname
                 .as_ref()
                 .map(|s| s.as_ref())
-                .unwrap_or(&empty),
-            self.appname
-                .as_ref()
-                .map(|s| s.as_ref())
-                .unwrap_or(&empty),
-            self.procid
-                .as_ref()
-                .map(|s| s.as_ref())
-                .unwrap_or(&empty),
-            self.msgid
-                .as_ref()
-                .map(|s| s.as_ref())
-                .unwrap_or(&empty),
+                .unwrap_or(&empty)
         )?;
+        
+        match self.protocol {
+            Protocol::RFC5424(_) => 
+                write!(f, "{} {} ", self.appname
+                       .as_ref()
+                       .map(|s| s.as_ref())
+                       .unwrap_or(&empty),
+                       self.procid
+                       .as_ref()
+                       .map(|s| s.as_ref())
+                       .unwrap_or(&empty)
+                       )?,
+            Protocol::RFC3164 =>
+                match (&self.appname, &self.procid) {
+                    (Some(appname), Some(procid)) =>
+                        write!(f, "{}[{}]: ", appname.as_ref(), procid.as_ref())?,
+                     (Some(appname), None) =>
+                        write!(f, "{}: ", appname.as_ref())?,
+                    _ => 
+                        write!(f, ": ")?,
+                }
+        }
+                
+
+        if let Protocol::RFC5424(_) = self.protocol {
+            write!(f, "{} ", self.msgid
+                   .as_ref()
+                   .map(|s| s.as_ref())
+                   .unwrap_or(&empty))?;
+        }
 
         if self.structured_data.len() == 0 {
             if let Protocol::RFC5424(_) = self.protocol {
-                write!(f, "-")?;
+                write!(f, "- ")?;
             }
         } else {
             for elem in &self.structured_data {
                 write!(f, "{}", elem)?;
             }
+            write!(f, " ")?;
         }
 
-        write!(f, " {}", self.msg.as_ref())
+        write!(f, "{}", self.msg.as_ref())
     }
 }
 
