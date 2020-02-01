@@ -30,19 +30,17 @@ where
     s
 }
 
-pub(crate) fn gen_str<G: Gen>(g: &mut G) -> Option<String> {
-    let value: Option<NoColonString> = Arbitrary::arbitrary(g);
-    value.map(|s| s.get_str())
+pub(crate) trait ArbitraryString {
+    fn get_str(self) -> String;
 }
-
 
 macro_rules! arbitrary_string {
     ($name: ident, $filter: expr) => {
         #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
         pub struct $name(pub String);
 
-        impl $name {
-            pub(crate) fn get_str(self) -> String {
+        impl ArbitraryString for $name {
+            fn get_str(self) -> String {
                 let $name(value) = self;
                 value
             }
@@ -84,15 +82,25 @@ arbitrary_string!(NonEmptyString, |c: char| {
 
 // Structured data names cannot contain ] = or whitespace
 arbitrary_string!(NameString, |c: char| {
-    !c.is_whitespace() && !c.is_control() && c.is_ascii() && c != ']' && c != '='
+    !c.is_whitespace() && !c.is_control() && c.is_ascii() && c != ']' && c != '=' && c != '-'
 });
 
 // Technically ] and " values need to be escaped, but we will ignore them for quickcheck.
 arbitrary_string!(ValueString, |c: char| {
-    !c.is_whitespace() && !c.is_control() && c.is_ascii() && c != ']' && c != '"' && c != '\\'
+    !c.is_whitespace() && !c.is_control() && c.is_ascii() && c != ']' && c != '"' && c != '\\' && c != '-'
 });
 
-// Header fields can't contain a : as this is a sign the message is about to start. 
+// App names can't have a [ in them as this means the start of the procid
+arbitrary_string!(AppNameString, |c: char| {
+    !c.is_whitespace() && !c.is_control() && c.is_ascii() && c != '[' && c != ':' && c != '-'
+});
+
+// ProcIds can't have a ] or a :
+arbitrary_string!(ProcIdString, |c: char| {
+    !c.is_whitespace() && !c.is_control() && c.is_ascii() && c != ']' && c != ':' && c != '-'
+});
+
+// Header fields can't contain a : as this is a sign the message is about to start.
 arbitrary_string!(NoColonString, |c: char| {
-    !c.is_whitespace() && !c.is_control() && c.is_ascii() && c != ':'
+    !c.is_whitespace() && !c.is_control() && c.is_ascii() && c != ':' && c != '-'
 });

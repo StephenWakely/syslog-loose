@@ -1,6 +1,6 @@
 ///! Parsers shared by both protocols.
 use nom::{
-    bytes::complete::take_while,
+    bytes::complete::take_while1,
     character::complete::digit1,
     combinator::map,
     combinator::map_res,
@@ -22,8 +22,8 @@ pub(crate) fn optional(input: &str) -> IResult<&str, Option<&str>> {
         // Note we need to use the ':' as a separator between the 3164 headers and the message.
         // So the header fields can't use them. Need to be aware of this to check
         // if this will be an issue.
-        take_while(|c: char| !c.is_whitespace() && c != ':'),
-        |value| {
+        take_while1(|c: char| !c.is_whitespace() && c != ':'),
+        |value: &str| {
             if value == "-" || value == "" {
                 None
             } else {
@@ -51,4 +51,9 @@ pub(crate) fn procid(input: &str) -> IResult<&str, Option<&str>> {
 /// Parse the Message Id
 pub(crate) fn msgid(input: &str) -> IResult<&str, Option<&str>> {
     optional(input)
+}
+
+#[test]
+fn parse_optional_exclamations() {
+    assert_eq!(optional("!!!"), Ok(("", Some("!!!"))));
 }

@@ -4,12 +4,14 @@ extern crate quickcheck_macros;
 
 mod non_empty_string;
 
-use non_empty_string::{gen_str, NameString, NoColonString, ValueString};
 use chrono::prelude::*;
+use non_empty_string::{
+    AppNameString, ArbitraryString, NameString, NoColonString, ProcIdString, ValueString,
+};
 use quickcheck::{Arbitrary, Gen};
 use syslog_loose::{decompose_pri, parse_message, Message, Protocol, StructuredElement};
 
-/// Create a wrapper struct for us to implement Arbitrary against 
+/// Create a wrapper struct for us to implement Arbitrary against
 #[derive(Clone, Debug)]
 struct Wrapper<A>(A);
 
@@ -20,21 +22,50 @@ impl<A> Wrapper<A> {
     }
 }
 
+pub(crate) fn gen_str<G, A>(g: &mut G) -> Option<String>
+where
+    G: Gen,
+    A: Arbitrary + ArbitraryString,
+{
+    let value: Option<A> = Arbitrary::arbitrary(g);
+    value.map(|s| s.get_str())
+}
+
 impl Arbitrary for Wrapper<Message<String>> {
     fn arbitrary<G: Gen>(g: &mut G) -> Wrapper<Message<String>> {
         let (facility, severity) = decompose_pri(Arbitrary::arbitrary(g));
         let msg: String = Arbitrary::arbitrary(g);
         let structured_data: Vec<Wrapper<StructuredElement<String>>> = Arbitrary::arbitrary(g);
+        let protocol = if Arbitrary::arbitrary(g) {
+            Protocol::RFC3164
+        } else {
+            Protocol::RFC5424(1)
+        };
+
+        let (appname, procid, msgid) = match protocol {
+            Protocol::RFC3164 => {
+                // 3164 cant have a procid without an app name
+                // Also no Msg Id
+                let appname = gen_str::<G, AppNameString>(g);
+                let procid = appname.clone().and_then(|_| gen_str::<G, ProcIdString>(g));
+                (appname, procid, None)
+            }
+            Protocol::RFC5424(_) => (
+                gen_str::<G, NoColonString>(g),
+                gen_str::<G, NoColonString>(g),
+                gen_str::<G, NoColonString>(g),
+            ),
+        };
 
         Wrapper(Message {
             facility,
             severity,
             timestamp: Some(Utc.timestamp(Arbitrary::arbitrary(g), 0).into()),
-            hostname: gen_str(g),
-            appname: gen_str(g),
-            procid: gen_str(g),
-            msgid: gen_str(g),
-            protocol: Protocol::RFC5424(1),
+            hostname: gen_str::<G, NoColonString>(g),
+            appname,
+            procid,
+            msgid,
+            protocol,
             structured_data: structured_data.iter().map(|s| s.clone().unwrap()).collect(),
             msg: msg.trim().into(),
         })
@@ -55,8 +86,8 @@ impl Arbitrary for Wrapper<Message<String>> {
         Box::new(
             (
                 message.hostname.clone().map(NoColonString),
-                message.appname.clone().map(NoColonString),
-                message.procid.clone().map(NoColonString),
+                message.appname.clone().map(AppNameString),
+                message.procid.clone().map(ProcIdString),
                 message.msgid.clone().map(NoColonString),
                 structured_data,
                 message.msg.clone(),
@@ -64,6 +95,14 @@ impl Arbitrary for Wrapper<Message<String>> {
                 .shrink()
                 .map(
                     move |(hostname, appname, procid, msgid, structured_data, msg)| {
+                        // Make sure procid doesnt shrink down to something without
+                        // the appname for 3164.
+                        let procid = match (&appname, &protocol) {
+                            (_, Protocol::RFC5424(_)) => procid,
+                            (None, Protocol::RFC3164) => None,
+                            _ => procid,
+                        };
+
                         Wrapper(Message {
                             facility,
                             severity,
@@ -73,7 +112,10 @@ impl Arbitrary for Wrapper<Message<String>> {
                             procid: procid.clone().map(|s| s.get_str()),
                             msgid: msgid.clone().map(|s| s.get_str()),
                             protocol: protocol.clone(),
-                            structured_data: structured_data.iter().map(|s| s.clone().unwrap()).collect(),
+                            structured_data: structured_data
+                                .iter()
+                                .map(|s| s.clone().unwrap())
+                                .collect(),
                             msg: msg.trim().into(),
                         })
                     },
@@ -101,7 +143,8 @@ impl Arbitrary for Wrapper<StructuredElement<String>> {
         Box::new(
             (
                 NameString(element.id.clone()),
-                element.params
+                element
+                    .params
                     .iter()
                     .map(|(name, value)| ((NameString(name.clone()), ValueString(value.clone()))))
                     .collect(),
@@ -127,7 +170,7 @@ impl Arbitrary for Wrapper<StructuredElement<String>> {
 #[quickcheck]
 fn quickcheck_parses_generated_messages(msg: Wrapper<Message<String>>) -> quickcheck::TestResult {
     let msg = msg.unwrap();
-    
+
     // Display the message.
     let text = format!("{}", msg);
 

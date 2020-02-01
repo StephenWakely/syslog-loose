@@ -70,13 +70,14 @@ where
             timestamp_3164(get_year),
             opt(preceded(space1, optional)),
             opt(preceded(space1, optional)),
+            opt(space0),
             opt(tag(":")),
             opt(space0),
             opt(structured_data),
             opt(space0),
             rest,
         )),
-        |(pri, _, timestamp, field1, field2, _, _, structured_data, _, msg)| {
+        |(pri, _, timestamp, field1, field2, _, _, _, structured_data, _, msg)| {
             let (host, appname, pid) = resolve_host_and_tag(field1, field2);
 
             Message {
@@ -178,6 +179,28 @@ mod tests {
                     msgid: None,
                     structured_data: vec![],
                     msg: "a message",
+                }
+            )
+        );
+    }
+
+    #[test]
+    fn parse_3164_host_with_space() {
+        assert_eq!(
+            parse("<54> 1970-01-01T00:01:31+00:00 host :", |_| 2019).unwrap(),
+            (
+                "",
+                Message {
+                    protocol: Protocol::RFC3164,
+                    facility: Some(SyslogFacility::LOG_LPR,),
+                    severity: Some(SyslogSeverity::SEV_INFO,),
+                    timestamp: Some(FixedOffset::west(0).ymd(1970, 01, 01).and_hms(0, 1, 31)),
+                    hostname: Some("host",),
+                    appname: None,
+                    procid: None,
+                    msgid: None,
+                    structured_data: vec![],
+                    msg: "",
                 }
             )
         );
