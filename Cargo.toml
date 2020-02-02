@@ -2,6 +2,12 @@
 name = "syslog_loose"
 version = "0.1.0"
 authors = ["Stephen Wakely <fungus.humungus@gmail.com>"]
+description = "A loose parser for syslog messages."
+license = "MIT"
+repository = "https://github.com/FungusHumungus/syslog-loose"
+documentation = "https://docs.rs/syslog_loose/"
+keywords = ["syslog", "logs", "logging"]
+readme = "README.md"
 edition = "2018"
 
 [dependencies]
