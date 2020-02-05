@@ -1,6 +1,6 @@
 use nom::{
     branch::alt,
-    bytes::complete::{escaped, tag, take_till1, take_while1},
+    bytes::complete::{escaped, tag, take_till1, take_until, take_while1},
     character::complete::{one_of, space0},
     combinator::map,
     multi::{many1, separated_list},
@@ -85,24 +85,40 @@ fn param(input: &str) -> IResult<&str, (&str, &str)> {
 
 /// Parse a single structured data record.
 /// [exampleSDID@32473 iut="3" eventSource="Application" eventID="1011"]
-fn structured_datum(input: &str) -> IResult<&str, StructuredElement<&str>> {
-    delimited(
-        tag("["),
-        map(
-            tuple((
-                take_till1(|c: char| c.is_whitespace() || c == ']' || c == '='),
-                space0,
-                separated_list(tag(" "), param),
-            )),
-            |(id, _, params)| StructuredElement { id, params },
+fn structured_datum(input: &str) -> IResult<&str, Option<StructuredElement<&str>>> {
+    alt((
+        delimited(
+            tag("["),
+            map(
+                tuple((
+                    take_till1(|c: char| c.is_whitespace() || c == ']' || c == '='),
+                    space0,
+                    separated_list(tag(" "), param),
+                )),
+                |(id, _, params)| Some(StructuredElement { id, params }),
+            ),
+            tag("]"),
         ),
-        tag("]"),
-    )(input)
+        // If the element fails to parse, just parse it and return None.
+        delimited(
+            tag("["),
+            map(take_until("]"), |_| None),
+            tag("]"),
+        ),
+    ))(input)
 }
 
 /// Parse multiple structured data elements.
 pub(crate) fn structured_data(input: &str) -> IResult<&str, Vec<StructuredElement<&str>>> {
-    alt((map(tag("-"), |_| vec![]), many1(structured_datum)))(input)
+    alt((
+        map(tag("-"), |_| vec![]),
+        map(many1(structured_datum), |items| {
+            items
+                .iter()
+                .filter_map(|item| item.clone())
+                .collect()
+        }),
+    ))(input)
 }
 
 #[test]
@@ -122,14 +138,14 @@ fn parse_structured_data() {
         .unwrap(),
         (
             "",
-            StructuredElement {
+            Some(StructuredElement {
                 id: "exampleSDID@32473",
                 params: vec![
                     ("iut", "3"),
                     ("eventSource", "Application"),
                     ("eventID", "1011"),
                 ]
-            }
+            })
         )
     );
 }
@@ -140,10 +156,10 @@ fn parse_structured_data_no_values() {
         structured_datum("[exampleSDID@32473]").unwrap(),
         (
             "",
-            StructuredElement {
+            Some(StructuredElement {
                 id: "exampleSDID@32473",
                 params: vec![]
-            }
+            })
         )
     );
 }
@@ -157,16 +173,21 @@ fn parse_structured_data_with_space() {
         .unwrap(),
         (
             "",
-            StructuredElement {
+            Some(StructuredElement {
                 id: "exampleSDID@32473",
                 params: vec![
                     ("iut", "3"),
                     ("eventSource", "Application"),
                     ("eventID", "1011"),
                 ]
-            }
+            })
         )
     );
+}
+
+#[test]
+fn parse_invalid_structured_data() {
+    assert_eq!(structured_datum("[exampleSDID@32473 iut=]"), Ok(("", None)));
 }
 
 #[cfg(test)]
@@ -200,6 +221,20 @@ mod tests {
                 ]
             )
         );
+    }
+
+    #[test]
+    fn parse_structured_data_ignores_invalid_elements() {
+        assert_eq!(
+            structured_data("[abc][id aa=]").unwrap(),
+            (
+                "",
+                vec![StructuredElement {
+                    id: "abc",
+                    params: vec![],
+                },]
+            )
+        )
     }
 
     #[test]

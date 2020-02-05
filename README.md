@@ -65,7 +65,7 @@ appname = app
 procid = 323
 
 
-The text following the `:` is the message. The message can first start with [structured data](https://tools.ietf.org/html/rfc5424#section-6.3), comprising one or more sections surrounded by `[` and `]` in the format: `[id key="value"..]`. Multiple key value pairs, separated by space, can be specified. Any remaining text is parsed as the free-form message.
+The text following the `:` is the message. The message can first start with [structured data](https://tools.ietf.org/html/rfc5424#section-6.3), comprising one or more sections surrounded by `[` and `]` in the format: `[id key="value"..]`. Multiple key value pairs, separated by space, can be specified. Any remaining text is parsed as the free-form message. Any structured data sections that fail to parse are ignored.
 
 
 # Example
