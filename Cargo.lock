@@ -551,7 +551,7 @@ dependencies = [
 
 [[package]]
 name = "syslog_loose"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chrono 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "criterion 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
