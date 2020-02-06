@@ -307,3 +307,233 @@ fn parse_blank_msg() {
         }
     );
 }
+
+
+#[test]
+fn syslog_ng_network_syslog_protocol() {
+    let msg = "i am foobar";
+    let raw = format!(
+        r#"<13>1 2019-02-13T19:48:34+00:00 74794bfb6795 root 8449 - {}{} {}"#,
+        r#"[meta sequenceId="1" sysUpTime="37" language="EN"]"#,
+        r#"[origin ip="192.168.0.1" software="test"]"#,
+        msg
+    );
+
+    assert_eq!(
+        parse_message(&raw),
+        Message { 
+            facility: Some(SyslogFacility::LOG_USER),
+            severity: Some(SyslogSeverity::SEV_NOTICE),
+            timestamp: Some(
+                FixedOffset::west(0)
+                    .ymd(2019, 02, 13)
+                    .and_hms_milli(19, 48, 34, 0)
+            ),
+            hostname: Some("74794bfb6795"),
+            appname: Some("root"),
+            procid: Some("8449"),
+            msgid: None,
+            protocol: Protocol::RFC5424(1),
+            structured_data: vec![
+                StructuredElement {
+                    id: "meta",
+                    params: vec![
+                        ("sequenceId", "1"),
+                        ("sysUpTime", "37"),
+                        ("language", "EN")
+                    ]
+                },
+                StructuredElement {
+                    id: "origin",
+                    params: vec![("ip", "192.168.0.1"),
+                                 ("software", "test"),
+                    ]
+                }
+            ],
+            msg: "i am foobar",
+        }
+    )
+}
+
+#[test]
+fn handles_incorrect_sd_element() {
+    let msg = format!(
+        r#"<13>1 2019-02-13T19:48:34+00:00 74794bfb6795 root 8449 - {} qwerty"#,
+        r#"[incorrect x]"#
+    );
+    
+    let should = Message { 
+        facility: Some(SyslogFacility::LOG_USER),
+        severity: Some(SyslogSeverity::SEV_NOTICE),
+        timestamp: Some(
+            FixedOffset::west(0)
+                .ymd(2019, 02, 13)
+                .and_hms_milli(19, 48, 34, 0)
+        ),
+        hostname: Some("74794bfb6795"),
+        appname: Some("root"),
+        procid: Some("8449"),
+        msgid: None,
+        protocol: Protocol::RFC5424(1),
+        structured_data: vec![],
+        msg: "qwerty",
+    };
+
+    assert_eq!(
+        parse_message(&msg),
+        should
+    );
+                      
+    let msg = format!(
+        r#"<13>1 2019-02-13T19:48:34+00:00 74794bfb6795 root 8449 - {} qwerty"#,
+        r#"[incorrect x=]"#
+    );
+
+    assert_eq!(
+        parse_message(&msg),
+        should
+    );
+}
+
+
+#[test]
+fn handles_empty_sd_element() {
+    let msg = format!(
+        r#"<13>1 2019-02-13T19:48:34+00:00 74794bfb6795 root 8449 - {} qwerty"#,
+        r#"[empty]"#
+    );
+
+    assert_eq!(
+        parse_message(&msg),
+        Message { 
+            facility: Some(SyslogFacility::LOG_USER),
+            severity: Some(SyslogSeverity::SEV_NOTICE),
+            timestamp: Some(
+                FixedOffset::west(0)
+                    .ymd(2019, 02, 13)
+                    .and_hms_milli(19, 48, 34, 0)
+            ),
+            hostname: Some("74794bfb6795"),
+            appname: Some("root"),
+            procid: Some("8449"),
+            msgid: None,
+            protocol: Protocol::RFC5424(1),
+            structured_data: vec![
+                StructuredElement {
+                    id: "empty",
+                    params: vec![]
+                }
+            ],
+            msg: "qwerty",
+        });
+
+    let msg = format!(
+        r#"<13>1 2019-02-13T19:48:34+00:00 74794bfb6795 root 8449 - {} qwerty"#,
+        r#"[non_empty x="1"][empty]"#
+    );
+    
+    assert_eq!(
+        parse_message(&msg),
+        Message { 
+            facility: Some(SyslogFacility::LOG_USER),
+            severity: Some(SyslogSeverity::SEV_NOTICE),
+            timestamp: Some(
+                FixedOffset::west(0)
+                    .ymd(2019, 02, 13)
+                    .and_hms_milli(19, 48, 34, 0)
+            ),
+            hostname: Some("74794bfb6795"),
+            appname: Some("root"),
+            procid: Some("8449"),
+            msgid: None,
+            protocol: Protocol::RFC5424(1),
+            structured_data: vec![
+                StructuredElement {
+                    id: "non_empty",
+                    params: vec![("x", "1")]
+                },
+                StructuredElement {
+                    id: "empty",
+                    params: vec![]
+                },
+            ],
+            msg: "qwerty",
+        });
+
+    let msg = format!(
+        r#"<13>1 2019-02-13T19:48:34+00:00 74794bfb6795 root 8449 - {} qwerty"#,
+        r#"[empty][non_empty x="1"]"#
+    );
+    
+    assert_eq!(
+        parse_message(&msg),
+        Message { 
+            facility: Some(SyslogFacility::LOG_USER),
+            severity: Some(SyslogSeverity::SEV_NOTICE),
+            timestamp: Some(
+                FixedOffset::west(0)
+                    .ymd(2019, 02, 13)
+                    .and_hms_milli(19, 48, 34, 0)
+            ),
+            hostname: Some("74794bfb6795"),
+            appname: Some("root"),
+            procid: Some("8449"),
+            msgid: None,
+            protocol: Protocol::RFC5424(1),
+            structured_data: vec![
+                StructuredElement {
+                    id: "empty",
+                    params: vec![]
+                },
+                StructuredElement {
+                    id: "non_empty",
+                    params: vec![("x", "1")]
+                },
+            ],
+            msg: "qwerty",
+        });
+
+    let msg = format!(
+        r#"<13>1 2019-02-13T19:48:34+00:00 74794bfb6795 root 8449 - {} qwerty"#,
+        r#"[empty not_really="testing the test"]"#
+    );
+    
+    assert_eq!(
+        parse_message(&msg),
+        Message { 
+            facility: Some(SyslogFacility::LOG_USER),
+            severity: Some(SyslogSeverity::SEV_NOTICE),
+            timestamp: Some(
+                FixedOffset::west(0)
+                    .ymd(2019, 02, 13)
+                    .and_hms_milli(19, 48, 34, 0)
+            ),
+            hostname: Some("74794bfb6795"),
+            appname: Some("root"),
+            procid: Some("8449"),
+            msgid: None,
+            protocol: Protocol::RFC5424(1),
+            structured_data: vec![
+                StructuredElement {
+                    id: "empty",
+                    params: vec![("not_really", "testing the test")]
+                },
+            ],
+            msg: "qwerty",
+        });
+
+}
+
+#[test]
+fn handles_weird_whitespace() {
+    // this should also match rsyslog omfwd with template=RSYSLOG_SyslogProtocol23Format
+    let raw = r#"
+            <13>1 2019-02-13T19:48:34+00:00 74794bfb6795 root 8449 - [meta sequenceId="1"] i am foobar
+            "#;
+    let cleaned = r#"<13>1 2019-02-13T19:48:34+00:00 74794bfb6795 root 8449 - [meta sequenceId="1"] i am foobar"#;
+
+    assert_eq!(
+        parse_message(&raw),
+        parse_message(&cleaned)
+    );
+}

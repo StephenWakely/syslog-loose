@@ -22,7 +22,7 @@ fn parse<F>(input: &str, get_year: F) -> IResult<&str, Message<&str>>
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
 {
-    alt((rfc5424::parse, |input| rfc3164::parse(input, get_year)))(input)
+    alt((rfc5424::parse, |input| rfc3164::parse(input, get_year)))(input.trim())
 }
 
 ///
