@@ -95,6 +95,11 @@ arbitrary_string!(AppNameString, |c: char| {
     !c.is_whitespace() && !c.is_control() && c.is_ascii() && c != '[' && c != ':' && c != '-'
 });
 
+// hostnames can't have a [ or a :
+arbitrary_string!(HostNameString, |c: char| {
+    !c.is_whitespace() && !c.is_control() && c.is_ascii() && c != '[' && c != ':'
+});
+
 // ProcIds can't have a ] or a :
 arbitrary_string!(ProcIdString, |c: char| {
     !c.is_whitespace() && !c.is_control() && c.is_ascii() && c != ']' && c != ':' && c != '-'

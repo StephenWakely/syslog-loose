@@ -6,7 +6,8 @@ mod non_empty_string;
 
 use chrono::prelude::*;
 use non_empty_string::{
-    AppNameString, ArbitraryString, NameString, NoColonString, ProcIdString, ValueString,
+    AppNameString, ArbitraryString, HostNameString, NameString, NoColonString, ProcIdString,
+    ValueString,
 };
 use quickcheck::{Arbitrary, Gen};
 use syslog_loose::{decompose_pri, parse_message, Message, Protocol, StructuredElement};
@@ -61,7 +62,7 @@ impl Arbitrary for Wrapper<Message<String>> {
             facility,
             severity,
             timestamp: Some(Utc.timestamp(Arbitrary::arbitrary(g), 0).into()),
-            hostname: gen_str::<G, NoColonString>(g),
+            hostname: gen_str::<G, HostNameString>(g),
             appname,
             procid,
             msgid,
@@ -85,7 +86,7 @@ impl Arbitrary for Wrapper<Message<String>> {
 
         Box::new(
             (
-                message.hostname.clone().map(NoColonString),
+                message.hostname.clone().map(HostNameString),
                 message.appname.clone().map(AppNameString),
                 message.procid.clone().map(ProcIdString),
                 message.msgid.clone().map(NoColonString),
