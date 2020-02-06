@@ -309,6 +309,14 @@ fn parse_blank_msg() {
 }
 
 
+
+/*
+
+The following tests have been taken from Vector (vector.dev)
+https://github.com/timberio/vector/blob/fff92728c9490824ff9d0ae76669adc901bb5499/src/sources/syslog.rs
+
+*/
+
 #[test]
 fn syslog_ng_network_syslog_protocol() {
     let msg = "i am foobar";
@@ -535,5 +543,95 @@ fn handles_weird_whitespace() {
     assert_eq!(
         parse_message(&raw),
         parse_message(&cleaned)
+    );
+}
+
+
+#[test]
+fn syslog_ng_default_network() {
+    let raw = r#"<13>Feb 13 20:07:26 74794bfb6795 root[8539]: i am foobar"#;
+    
+    assert_eq!(
+        parse_message_with_year(&raw, with_year),
+        Message { 
+            facility: Some(SyslogFacility::LOG_USER),
+            severity: Some(SyslogSeverity::SEV_NOTICE),
+            timestamp: Some(
+                FixedOffset::west(0)
+                    .ymd(2020, 02, 13)
+                    .and_hms(20, 07, 26)
+            ),
+            hostname: Some("74794bfb6795"),
+            appname: Some("root"),
+            procid: Some("8539"),
+            msgid: None,
+            protocol: Protocol::RFC3164,
+            structured_data: vec![],
+            msg: "i am foobar",
+        }       
+    );
+}
+
+#[test]
+fn rsyslog_omfwd_tcp_default() {
+    let raw = r#"<190>Feb 13 21:31:56 74794bfb6795 liblogging-stdlog:  [origin software="rsyslogd" swVersion="8.24.0" x-pid="8979" x-info="http://www.rsyslog.com"] start"#;
+
+    assert_eq!(
+        parse_message_with_year(&raw, with_year),
+        Message { 
+            facility: Some(SyslogFacility::LOG_LOCAL7),
+            severity: Some(SyslogSeverity::SEV_INFO),
+            timestamp: Some(
+                FixedOffset::west(0)
+                    .ymd(2020, 02, 13)
+                    .and_hms(21, 31, 56)
+            ),
+            hostname: Some("74794bfb6795"),
+            appname: Some("liblogging-stdlog"),
+            procid: None,
+            msgid: None,
+            protocol: Protocol::RFC3164,
+            structured_data: vec![
+                StructuredElement {
+                    id: "origin",
+                    params: vec![("software", "rsyslogd"),
+                                 ("swVersion", "8.24.0"),
+                                 ("x-pid", "8979"),
+                                 ("x-info", "http://www.rsyslog.com")]
+                }],
+            msg: "start",
+        }       
+    );   
+}
+
+#[test]
+fn rsyslog_omfwd_tcp_forward_format() {
+    let raw = r#"<190>2019-02-13T21:53:30.605850+00:00 74794bfb6795 liblogging-stdlog:  [origin software="rsyslogd" swVersion="8.24.0" x-pid="9043" x-info="http://www.rsyslog.com"] start"#;
+
+    assert_eq!(
+        parse_message_with_year(&raw, with_year),
+        Message { 
+            facility: Some(SyslogFacility::LOG_LOCAL7),
+            severity: Some(SyslogSeverity::SEV_INFO),
+            timestamp: Some(
+                FixedOffset::west(0)
+                    .ymd(2019, 02, 13)
+                    .and_hms_micro(21, 53, 30, 605_850)
+            ),
+            hostname: Some("74794bfb6795"),
+            appname: Some("liblogging-stdlog"),
+            procid: None,
+            msgid: None,
+            protocol: Protocol::RFC3164,
+            structured_data: vec![
+                StructuredElement {
+                    id: "origin",
+                    params: vec![("software", "rsyslogd"),
+                                 ("swVersion", "8.24.0"),
+                                 ("x-pid", "8979"),
+                                 ("x-info", "http://www.rsyslog.com")]
+                }],
+            msg: "start",
+        }       
     );
 }
