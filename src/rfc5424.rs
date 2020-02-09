@@ -32,7 +32,7 @@ pub(crate) fn parse(input: &str) -> IResult<&str, Message<&str>> {
             timestamp: Some(timestamp),
             hostname,
             appname,
-            procid,
+            procid: procid.map(|p| p.into()),
             msgid,
             structured_data,
             msg

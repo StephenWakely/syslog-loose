@@ -4,6 +4,7 @@ mod error;
 mod message;
 mod parsers;
 mod pri;
+mod procid;
 mod rfc3164;
 mod rfc5424;
 mod structured_data;
@@ -13,6 +14,7 @@ use chrono::prelude::*;
 use nom::{branch::alt, IResult};
 
 pub use message::{Message, Protocol};
+pub use procid::{ProcId};
 pub use pri::{decompose_pri, SyslogFacility, SyslogSeverity};
 pub use structured_data::StructuredElement;
 pub use timestamp::IncompleteDate;

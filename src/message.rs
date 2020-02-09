@@ -1,5 +1,6 @@
 use crate::pri::{compose_pri, SyslogFacility, SyslogSeverity};
 use crate::structured_data;
+use crate::procid::ProcId;
 use chrono::prelude::*;
 use std::fmt;
 
@@ -18,7 +19,7 @@ pub struct Message<S: AsRef<str> + Ord + PartialEq + Clone> {
     pub timestamp: Option<DateTime<FixedOffset>>,
     pub hostname: Option<S>,
     pub appname: Option<S>,
-    pub procid: Option<S>,
+    pub procid: Option<ProcId<S>>,
     pub msgid: Option<S>,
     pub structured_data: Vec<structured_data::StructuredElement<S>>,
     pub msg: S,
@@ -47,20 +48,20 @@ impl<S: AsRef<str> + Ord + PartialEq + Clone> fmt::Display for Message<S> {
         )?;
         
         match self.protocol {
-            Protocol::RFC5424(_) => 
-                write!(f, "{} {} ", self.appname
+            Protocol::RFC5424(_) => {
+                write!(f, "{} ", self.appname
                        .as_ref()
                        .map(|s| s.as_ref())
-                       .unwrap_or(&empty),
-                       self.procid
-                       .as_ref()
-                       .map(|s| s.as_ref())
-                       .unwrap_or(&empty)
-                       )?,
+                       .unwrap_or(&empty))?;
+                match &self.procid {
+                    None => write!(f, "- ")?,
+                    Some(procid) => write!(f, "{} ", procid)?,
+                };
+            }
             Protocol::RFC3164 =>
                 match (&self.appname, &self.procid) {
                     (Some(appname), Some(procid)) =>
-                        write!(f, "{}[{}]: ", appname.as_ref(), procid.as_ref())?,
+                        write!(f, "{}[{}]: ", appname.as_ref(), procid)?,
                      (Some(appname), None) =>
                         write!(f, "{}: ", appname.as_ref())?,
                     _ => 
@@ -113,7 +114,7 @@ impl From<Message<&str>> for Message<String> {
             timestamp: message.timestamp,
             hostname: message.hostname.map(|s| s.to_string()),
             appname: message.appname.map(|s| s.to_string()),
-            procid: message.procid.map(|s| s.to_string()),
+            procid: message.procid.map(|s| s.into()),
             msgid: message.msgid.map(|s| s.to_string()),
             protocol: message.protocol,
             structured_data: message

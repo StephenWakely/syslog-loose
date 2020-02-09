@@ -10,7 +10,7 @@ use non_empty_string::{
     ValueString,
 };
 use quickcheck::{Arbitrary, Gen};
-use syslog_loose::{decompose_pri, parse_message, Message, Protocol, StructuredElement};
+use syslog_loose::{decompose_pri, parse_message, Message, ProcId, Protocol, StructuredElement};
 
 /// Create a wrapper struct for us to implement Arbitrary against
 #[derive(Clone, Debug)]
@@ -48,12 +48,21 @@ impl Arbitrary for Wrapper<Message<String>> {
                 // 3164 cant have a procid without an app name
                 // Also no Msg Id
                 let appname = gen_str::<G, AppNameString>(g);
-                let procid = appname.clone().and_then(|_| gen_str::<G, ProcIdString>(g));
+                let procid = match appname {
+                    None => None,
+                    Some(_) => {
+                        let procid: Wrapper<ProcId<String>> = Arbitrary::arbitrary(g);
+                        Some(procid.unwrap())
+                    }
+                };
                 (appname, procid, None)
             }
             Protocol::RFC5424(_) => (
                 gen_str::<G, NoColonString>(g),
-                gen_str::<G, NoColonString>(g),
+                {
+                    let procid: Option<Wrapper<ProcId<String>>> = Arbitrary::arbitrary(g);
+                    procid.map(|p| p.unwrap())
+                },
                 gen_str::<G, NoColonString>(g),
             ),
         };
@@ -88,7 +97,7 @@ impl Arbitrary for Wrapper<Message<String>> {
             (
                 message.hostname.clone().map(HostNameString),
                 message.appname.clone().map(AppNameString),
-                message.procid.clone().map(ProcIdString),
+                message.procid.clone().map(Wrapper),
                 message.msgid.clone().map(NoColonString),
                 structured_data,
                 message.msg.clone(),
@@ -110,7 +119,7 @@ impl Arbitrary for Wrapper<Message<String>> {
                             timestamp,
                             hostname: hostname.clone().map(|s| s.get_str()),
                             appname: appname.clone().map(|s| s.get_str()),
-                            procid: procid.clone().map(|s| s.get_str()),
+                            procid: procid.clone().map(|s| s.unwrap()),
                             msgid: msgid.clone().map(|s| s.get_str()),
                             protocol: protocol.clone(),
                             structured_data: structured_data
@@ -122,6 +131,31 @@ impl Arbitrary for Wrapper<Message<String>> {
                     },
                 ),
         )
+    }
+}
+
+impl Arbitrary for Wrapper<ProcId<String>> {
+    fn arbitrary<G: Gen>(g: &mut G) -> Wrapper<ProcId<String>> {
+        Wrapper(if Arbitrary::arbitrary(g) {
+            ProcId::PID(Arbitrary::arbitrary(g))
+        } else {
+            let name: ProcIdString = Arbitrary::arbitrary(g);
+            ProcId::Name(name.get_str())
+        })
+    }
+
+    fn shrink(&self) -> Box<dyn Iterator<Item = Wrapper<ProcId<String>>>> {
+        let procid = self.clone().unwrap();
+
+        match procid {
+            ProcId::PID(pid) => Box::new(pid.shrink().map(|pid| Wrapper(ProcId::PID(pid)))),
+
+            ProcId::Name(name) => Box::new(
+                ProcIdString(name)
+                    .shrink()
+                    .map(|name| Wrapper(ProcId::Name(name.get_str()))),
+            ),
+        }
     }
 }
 

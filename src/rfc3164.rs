@@ -87,7 +87,7 @@ where
                 timestamp: Some(timestamp),
                 hostname: host,
                 appname: appname,
-                procid: pid,
+                procid: pid.map(|p| p.into()),
                 msgid: None,
                 structured_data: structured_data.unwrap_or(vec![]),
                 msg,
@@ -109,7 +109,10 @@ fn parse_tag_without_pid() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pri::{SyslogFacility, SyslogSeverity};
+    use crate::{
+        pri::{SyslogFacility, SyslogSeverity},
+        procid::ProcId,
+    };
     use chrono::prelude::*;
 
     #[test]
@@ -222,7 +225,7 @@ mod tests {
                     timestamp: Some(FixedOffset::west(0).ymd(2019, 10, 11).and_hms(22, 14, 15)),
                     hostname: Some("mymachine"),
                     appname: Some("app"),
-                    procid: Some("323"),
+                    procid: Some(ProcId::PID(323)),
                     msgid: None,
                     structured_data: vec![],
                     msg: "a message",
@@ -248,7 +251,7 @@ mod tests {
                     timestamp: Some(FixedOffset::west(0).ymd(2020, 10, 11).and_hms(22, 14, 15)),
                     hostname: Some("mymachine"),
                     appname: Some("app"),
-                    procid: Some("323"),
+                    procid: Some(ProcId::PID(323)),
                     msgid: None,
                     structured_data: vec![],
                     msg: "a message",
