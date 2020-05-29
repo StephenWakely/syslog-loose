@@ -636,3 +636,28 @@ fn rsyslog_omfwd_tcp_forward_format() {
         }       
     );
 }
+
+#[test]
+fn logical_system_juniper_routers() {
+    let raw = r#"<28>1 2020-05-22T14:59:09.250-03:00 OX-XXX-MX204 OX-XXX-CONTEUDO:rpd 6589 - - bgp_listen_accept: %DAEMON-4: Connection attempt from unconfigured neighbor: 2001:XXX::219:166+57284"#;
+
+    assert_eq!(
+        parse_message_with_year(&raw, with_year),
+        Message {
+            facility: Some(SyslogFacility::LOG_DAEMON),
+            severity: Some(SyslogSeverity::SEV_WARNING),
+            timestamp: Some(
+                FixedOffset::west(1800 * 6)
+                    .ymd(2020, 05, 22)
+                    .and_hms_micro(14, 59, 09, 250000)
+            ),
+            hostname: Some("OX-XXX-MX204"),
+            appname: Some("OX-XXX-CONTEUDO:rpd"),
+            procid: Some(ProcId::PID(6589)),
+            msgid: None,
+            protocol: Protocol::RFC5424(1),
+            structured_data: vec![],
+            msg: "bgp_listen_accept: %DAEMON-4: Connection attempt from unconfigured neighbor: 2001:XXX::219:166+57284",
+        }
+    );
+}

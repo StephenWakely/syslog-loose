@@ -1,7 +1,7 @@
 ///! Parsers for rfc 3164 specific formats.
 use crate::{
     message::{Message, Protocol},
-    parsers::optional,
+    parsers::{hostname, tagname},
     pri::pri,
     structured_data::structured_data,
     timestamp::{timestamp_3164, IncompleteDate},
@@ -68,8 +68,8 @@ where
             pri,
             opt(space0),
             timestamp_3164(get_year),
-            opt(preceded(space1, optional)),
-            opt(preceded(space1, optional)),
+            opt(preceded(space1, hostname)),
+            opt(preceded(space1, tagname)),
             opt(space0),
             opt(tag(":")),
             opt(space0),
