@@ -6,6 +6,7 @@ use crate::{
     structured_data::structured_data,
     timestamp::{timestamp_3164, IncompleteDate},
 };
+use chrono::prelude::*;
 use nom::{
     bytes::complete::{is_not, tag, take_while},
     character::complete::{space0, space1},
@@ -59,7 +60,7 @@ fn resolve_host_and_tag<'a>(
 }
 
 /// Parses the message as per RFC3164.
-pub fn parse<F>(input: &str, get_year: F) -> IResult<&str, Message<&str>>
+pub fn parse<F>(input: &str, get_year: F, tz: Option<FixedOffset>) -> IResult<&str, Message<&str>>
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
 {
@@ -67,7 +68,7 @@ where
         tuple((
             pri,
             opt(space0),
-            timestamp_3164(get_year),
+            timestamp_3164(get_year, tz),
             opt(preceded(space1, hostname)),
             opt(preceded(space1, tagname)),
             opt(space0),
@@ -113,7 +114,6 @@ mod tests {
         pri::{SyslogFacility, SyslogSeverity},
         procid::ProcId,
     };
-    use chrono::prelude::*;
 
     #[test]
     fn parse_3164_timestamp() {
@@ -124,7 +124,7 @@ mod tests {
         Are there any significant systems that will send a syslog like this?
         */
         assert_eq!(
-            parse("<34>Oct 11 22:14:15 : a message", |_| 2019).unwrap(),
+            parse("<34>Oct 11 22:14:15 : a message", |_| 2019, Some(Utc.fix())).unwrap(),
             (
                 "",
                 Message {
@@ -146,7 +146,7 @@ mod tests {
     #[test]
     fn parse_3164_timestamp_uppercase() {
         assert_eq!(
-            parse("<34>OCT 11 22:14:15 : a message", |_| 2019).unwrap(),
+            parse("<34>OCT 11 22:14:15 : a message", |_| 2019, Some(Utc.fix())).unwrap(),
             (
                 "",
                 Message {
@@ -168,7 +168,7 @@ mod tests {
     #[test]
     fn parse_3164_timestamp_host() {
         assert_eq!(
-            parse("<34>Oct 11 22:14:15 mymachine: a message", |_| 2019).unwrap(),
+            parse("<34>Oct 11 22:14:15 mymachine: a message", |_| 2019, Some(Utc.fix())).unwrap(),
             (
                 "",
                 Message {
@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn parse_3164_host_with_space() {
         assert_eq!(
-            parse("<54> 1970-01-01T00:01:31+00:00 host :", |_| 2019).unwrap(),
+            parse("<54> 1970-01-01T00:01:31+00:00 host :", |_| 2019, None).unwrap(),
             (
                 "",
                 Message {
@@ -212,9 +212,11 @@ mod tests {
     #[test]
     fn parse_3164_timestamp_host_appname_pid() {
         assert_eq!(
-            parse("<34>Oct 11 22:14:15 mymachine app[323]: a message", |_| {
-                2019
-            })
+            parse(
+                "<34>Oct 11 22:14:15 mymachine app[323]: a message",
+                |_| { 2019 },
+                Some(Utc.fix())
+            )
             .unwrap(),
             (
                 "",
@@ -239,7 +241,8 @@ mod tests {
         assert_eq!(
             parse(
                 "<34>2020-10-11T22:14:15.00Z mymachine app[323]: a message",
-                |_| { 2019 }
+                |_| { 2019 },
+                None
             )
             .unwrap(),
             (

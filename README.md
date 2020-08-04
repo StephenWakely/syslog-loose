@@ -84,3 +84,10 @@ fn resolve_year((month, _date, _hour, _min, _sec): syslog_loose::IncompleteDate)
 parse_message_with_year(msg, resolve_year)
 
 ```
+
+# Timezones
+
+Dates in a RFC3164 message may not necessarily specify a Timezone. If you wish to specify a timezone manually you can parse the message with `parse_message_with_year_tz'. The `tz` parameter contains an Option of a chrono [`FixedOffset`](https://docs.rs/chrono/0.4.13/chrono/offset/struct.FixedOffset.html) that specifies the offset from UTC.
+
+If no timezone is specified the date will be parsed in the local time - unless that time cannot exist in the local timezone (that nonexistent period of time when clocks go forward), then the timezone will be parsed as UTC.
+
