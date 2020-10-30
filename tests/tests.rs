@@ -221,6 +221,31 @@ fn parse_3164_invalid_structured_data() {
 }
 
 #[test]
+fn parse_3164_no_tag() {
+    let msg = "<46>Jan  5 15:33:03 plertrood-ThinkPad-X220  [software=\"rsyslogd\" swVersion=\"8.32.0\" x-pid=\"20506\" x-info=\"http://www.rsyslog.com\"] start";
+
+    assert_eq!(
+        parse_message_with_year(msg, with_year),
+        Message {
+            facility: Some(SyslogFacility::LOG_SYSLOG),
+            severity: Some(SyslogSeverity::SEV_INFO),
+            timestamp: Some(
+                FixedOffset::west(0)
+                    .ymd(2020, 1, 5)
+                    .and_hms_milli(15, 33, 3, 0)
+            ),
+            hostname: Some("plertrood-ThinkPad-X220"),
+            appname: None,
+            procid: None,
+            msgid: None,
+            protocol: Protocol::RFC3164,
+            structured_data: vec![],
+            msg: "start",
+        }
+    );
+}
+
+#[test]
 fn parse_european_chars() {
     let msg = "<46>Jan 5 10:01:00 Übergröße außerplanmäßig größenordnungsmäßig";
 
