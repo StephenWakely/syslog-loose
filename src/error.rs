@@ -1,9 +1,7 @@
 use nom;
-use std::{fmt, error};
+use std::{error, fmt};
 
-
-
-/// Wrap nom errors with our own 
+/// Wrap nom errors with our own
 #[derive(Debug)]
 pub struct ParseError<'a>(pub nom::Err<(&'a str, nom::error::ErrorKind)>);
 
@@ -14,4 +12,4 @@ impl<'a> fmt::Display for ParseError<'a> {
     }
 }
 
-impl<'a> error::Error for ParseError<'a> {} 
+impl<'a> error::Error for ParseError<'a> {}

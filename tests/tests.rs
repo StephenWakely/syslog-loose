@@ -1,14 +1,8 @@
-
 use chrono::prelude::*;
-use syslog_loose::{parse_message, 
-                   parse_message_with_year,
-                   IncompleteDate,
-                   Message, 
-                   ProcId,
-                   Protocol, 
-                   StructuredElement, 
-                   SyslogFacility, 
-                   SyslogSeverity};
+use syslog_loose::{
+    parse_message, parse_message_with_year, IncompleteDate, Message, ProcId, Protocol,
+    StructuredElement, SyslogFacility, SyslogSeverity,
+};
 
 fn with_year((month, _date, _hour, _min, _sec): IncompleteDate) -> i32 {
     if month == 12 {
@@ -201,23 +195,25 @@ fn parse_3164_invalid_structured_data() {
     // Remove the id from the rsyslog messages structured data. This should now go into the msg.
     let msg = "<46>Jan  5 15:33:03 plertrood-ThinkPad-X220 rsyslogd:  [software=\"rsyslogd\" swVersion=\"8.32.0\" x-pid=\"20506\" x-info=\"http://www.rsyslog.com\"] start";
 
-    assert_eq!(parse_message_with_year(msg, with_year),
-               Message {
-                   facility: Some(SyslogFacility::LOG_SYSLOG),
-                   severity: Some(SyslogSeverity::SEV_INFO),
-                   timestamp: Some(
-                       FixedOffset::west(0)
-                           .ymd(2020, 1, 5)
-                           .and_hms_milli(15, 33, 3, 0)
-                   ),
-                   hostname: Some("plertrood-ThinkPad-X220"),
-                   appname: Some("rsyslogd"),
-                   procid: None,
-                   msgid: None,
-                   protocol: Protocol::RFC3164,
-                   structured_data: vec![],
-                   msg: "start",
-               });
+    assert_eq!(
+        parse_message_with_year(msg, with_year),
+        Message {
+            facility: Some(SyslogFacility::LOG_SYSLOG),
+            severity: Some(SyslogSeverity::SEV_INFO),
+            timestamp: Some(
+                FixedOffset::west(0)
+                    .ymd(2020, 1, 5)
+                    .and_hms_milli(15, 33, 3, 0)
+            ),
+            hostname: Some("plertrood-ThinkPad-X220"),
+            appname: Some("rsyslogd"),
+            procid: None,
+            msgid: None,
+            protocol: Protocol::RFC3164,
+            structured_data: vec![],
+            msg: "start",
+        }
+    );
 }
 
 #[test]
@@ -309,8 +305,6 @@ fn parse_blank_msg() {
     );
 }
 
-
-
 /*
 
 The following tests have been taken from Vector (vector.dev)
@@ -330,7 +324,7 @@ fn syslog_ng_network_syslog_protocol() {
 
     assert_eq!(
         parse_message(&raw),
-        Message { 
+        Message {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
             timestamp: Some(
@@ -346,17 +340,11 @@ fn syslog_ng_network_syslog_protocol() {
             structured_data: vec![
                 StructuredElement {
                     id: "meta",
-                    params: vec![
-                        ("sequenceId", "1"),
-                        ("sysUpTime", "37"),
-                        ("language", "EN")
-                    ]
+                    params: vec![("sequenceId", "1"), ("sysUpTime", "37"), ("language", "EN")]
                 },
                 StructuredElement {
                     id: "origin",
-                    params: vec![("ip", "192.168.0.1"),
-                                 ("software", "test"),
-                    ]
+                    params: vec![("ip", "192.168.0.1"), ("software", "test"),]
                 }
             ],
             msg: "i am foobar",
@@ -370,14 +358,14 @@ fn handles_incorrect_sd_element() {
         r#"<13>1 2019-02-13T19:48:34+00:00 74794bfb6795 root 8449 - {} qwerty"#,
         r#"[incorrect x]"#
     );
-    
-    let should = Message { 
+
+    let should = Message {
         facility: Some(SyslogFacility::LOG_USER),
         severity: Some(SyslogSeverity::SEV_NOTICE),
         timestamp: Some(
             FixedOffset::west(0)
                 .ymd(2019, 02, 13)
-                .and_hms_milli(19, 48, 34, 0)
+                .and_hms_milli(19, 48, 34, 0),
         ),
         hostname: Some("74794bfb6795"),
         appname: Some("root"),
@@ -388,22 +376,15 @@ fn handles_incorrect_sd_element() {
         msg: "qwerty",
     };
 
-    assert_eq!(
-        parse_message(&msg),
-        should
-    );
-                      
+    assert_eq!(parse_message(&msg), should);
+
     let msg = format!(
         r#"<13>1 2019-02-13T19:48:34+00:00 74794bfb6795 root 8449 - {} qwerty"#,
         r#"[incorrect x=]"#
     );
 
-    assert_eq!(
-        parse_message(&msg),
-        should
-    );
+    assert_eq!(parse_message(&msg), should);
 }
-
 
 #[test]
 fn handles_empty_sd_element() {
@@ -414,7 +395,7 @@ fn handles_empty_sd_element() {
 
     assert_eq!(
         parse_message(&msg),
-        Message { 
+        Message {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
             timestamp: Some(
@@ -427,23 +408,22 @@ fn handles_empty_sd_element() {
             procid: Some(ProcId::PID(8449)),
             msgid: None,
             protocol: Protocol::RFC5424(1),
-            structured_data: vec![
-                StructuredElement {
-                    id: "empty",
-                    params: vec![]
-                }
-            ],
+            structured_data: vec![StructuredElement {
+                id: "empty",
+                params: vec![]
+            }],
             msg: "qwerty",
-        });
+        }
+    );
 
     let msg = format!(
         r#"<13>1 2019-02-13T19:48:34+00:00 74794bfb6795 root 8449 - {} qwerty"#,
         r#"[non_empty x="1"][empty]"#
     );
-    
+
     assert_eq!(
         parse_message(&msg),
-        Message { 
+        Message {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
             timestamp: Some(
@@ -467,16 +447,17 @@ fn handles_empty_sd_element() {
                 },
             ],
             msg: "qwerty",
-        });
+        }
+    );
 
     let msg = format!(
         r#"<13>1 2019-02-13T19:48:34+00:00 74794bfb6795 root 8449 - {} qwerty"#,
         r#"[empty][non_empty x="1"]"#
     );
-    
+
     assert_eq!(
         parse_message(&msg),
-        Message { 
+        Message {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
             timestamp: Some(
@@ -500,16 +481,17 @@ fn handles_empty_sd_element() {
                 },
             ],
             msg: "qwerty",
-        });
+        }
+    );
 
     let msg = format!(
         r#"<13>1 2019-02-13T19:48:34+00:00 74794bfb6795 root 8449 - {} qwerty"#,
         r#"[empty not_really="testing the test"]"#
     );
-    
+
     assert_eq!(
         parse_message(&msg),
-        Message { 
+        Message {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
             timestamp: Some(
@@ -522,15 +504,13 @@ fn handles_empty_sd_element() {
             procid: Some(ProcId::PID(8449)),
             msgid: None,
             protocol: Protocol::RFC5424(1),
-            structured_data: vec![
-                StructuredElement {
-                    id: "empty",
-                    params: vec![("not_really", "testing the test")]
-                },
-            ],
+            structured_data: vec![StructuredElement {
+                id: "empty",
+                params: vec![("not_really", "testing the test")]
+            },],
             msg: "qwerty",
-        });
-
+        }
+    );
 }
 
 #[test]
@@ -541,27 +521,19 @@ fn handles_weird_whitespace() {
             "#;
     let cleaned = r#"<13>1 2019-02-13T19:48:34+00:00 74794bfb6795 root 8449 - [meta sequenceId="1"] i am foobar"#;
 
-    assert_eq!(
-        parse_message(&raw),
-        parse_message(&cleaned)
-    );
+    assert_eq!(parse_message(&raw), parse_message(&cleaned));
 }
-
 
 #[test]
 fn syslog_ng_default_network() {
     let raw = r#"<13>Feb 13 20:07:26 74794bfb6795 root[8539]: i am foobar"#;
-    
+
     assert_eq!(
         parse_message_with_year(&raw, with_year),
-        Message { 
+        Message {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
-            timestamp: Some(
-                FixedOffset::west(0)
-                    .ymd(2020, 02, 13)
-                    .and_hms(20, 07, 26)
-            ),
+            timestamp: Some(FixedOffset::west(0).ymd(2020, 02, 13).and_hms(20, 07, 26)),
             hostname: Some("74794bfb6795"),
             appname: Some("root"),
             procid: Some(ProcId::PID(8539)),
@@ -569,7 +541,7 @@ fn syslog_ng_default_network() {
             protocol: Protocol::RFC3164,
             structured_data: vec![],
             msg: "i am foobar",
-        }       
+        }
     );
 }
 
@@ -579,30 +551,27 @@ fn rsyslog_omfwd_tcp_default() {
 
     assert_eq!(
         parse_message_with_year(&raw, with_year),
-        Message { 
+        Message {
             facility: Some(SyslogFacility::LOG_LOCAL7),
             severity: Some(SyslogSeverity::SEV_INFO),
-            timestamp: Some(
-                FixedOffset::west(0)
-                    .ymd(2020, 02, 13)
-                    .and_hms(21, 31, 56)
-            ),
+            timestamp: Some(FixedOffset::west(0).ymd(2020, 02, 13).and_hms(21, 31, 56)),
             hostname: Some("74794bfb6795"),
             appname: Some("liblogging-stdlog"),
             procid: None,
             msgid: None,
             protocol: Protocol::RFC3164,
-            structured_data: vec![
-                StructuredElement {
-                    id: "origin",
-                    params: vec![("software", "rsyslogd"),
-                                 ("swVersion", "8.24.0"),
-                                 ("x-pid", "8979"),
-                                 ("x-info", "http://www.rsyslog.com")]
-                }],
+            structured_data: vec![StructuredElement {
+                id: "origin",
+                params: vec![
+                    ("software", "rsyslogd"),
+                    ("swVersion", "8.24.0"),
+                    ("x-pid", "8979"),
+                    ("x-info", "http://www.rsyslog.com")
+                ]
+            }],
             msg: "start",
-        }       
-    );   
+        }
+    );
 }
 
 #[test]
@@ -611,7 +580,7 @@ fn rsyslog_omfwd_tcp_forward_format() {
 
     assert_eq!(
         parse_message_with_year(&raw, with_year),
-        Message { 
+        Message {
             facility: Some(SyslogFacility::LOG_LOCAL7),
             severity: Some(SyslogSeverity::SEV_INFO),
             timestamp: Some(
@@ -624,16 +593,17 @@ fn rsyslog_omfwd_tcp_forward_format() {
             procid: None,
             msgid: None,
             protocol: Protocol::RFC3164,
-            structured_data: vec![
-                StructuredElement {
-                    id: "origin",
-                    params: vec![("software", "rsyslogd"),
-                                 ("swVersion", "8.24.0"),
-                                 ("x-pid", "8979"),
-                                 ("x-info", "http://www.rsyslog.com")]
-                }],
+            structured_data: vec![StructuredElement {
+                id: "origin",
+                params: vec![
+                    ("software", "rsyslogd"),
+                    ("swVersion", "8.24.0"),
+                    ("x-pid", "8979"),
+                    ("x-info", "http://www.rsyslog.com")
+                ]
+            }],
             msg: "start",
-        }       
+        }
     );
 }
 

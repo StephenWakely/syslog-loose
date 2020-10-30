@@ -87,7 +87,13 @@ arbitrary_string!(NameString, |c: char| {
 
 // Technically ] and " values need to be escaped, but we will ignore them for quickcheck.
 arbitrary_string!(ValueString, |c: char| {
-    !c.is_whitespace() && !c.is_control() && c.is_ascii() && c != ']' && c != '"' && c != '\\' && c != '-'
+    !c.is_whitespace()
+        && !c.is_control()
+        && c.is_ascii()
+        && c != ']'
+        && c != '"'
+        && c != '\\'
+        && c != '-'
 });
 
 // App names can't have a [ in them as this means the start of the procid

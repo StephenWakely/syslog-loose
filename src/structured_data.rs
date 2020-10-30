@@ -100,11 +100,7 @@ fn structured_datum(input: &str) -> IResult<&str, Option<StructuredElement<&str>
             tag("]"),
         ),
         // If the element fails to parse, just parse it and return None.
-        delimited(
-            tag("["),
-            map(take_until("]"), |_| None),
-            tag("]"),
-        ),
+        delimited(tag("["), map(take_until("]"), |_| None), tag("]")),
     ))(input)
 }
 
@@ -113,10 +109,7 @@ pub(crate) fn structured_data(input: &str) -> IResult<&str, Vec<StructuredElemen
     alt((
         map(tag("-"), |_| vec![]),
         map(many1(structured_datum), |items| {
-            items
-                .iter()
-                .filter_map(|item| item.clone())
-                .collect()
+            items.iter().filter_map(|item| item.clone()).collect()
         }),
     ))(input)
 }
