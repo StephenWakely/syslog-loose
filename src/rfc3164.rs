@@ -118,10 +118,9 @@ mod tests {
     #[test]
     fn parse_3164_timestamp() {
         /*
-        Note the requirement for there to be a : to separate the header and the message.
+        Note the requirement for there to be either a `:` or 2 spaces (see next test) to separate the header and the message.
         I can't see a way around this. a is a valid hostname and message is a valid appname..
         This is not completely compliant with the RFC.
-        Are there any significant systems that will send a syslog like this?
         */
         assert_eq!(
             parse("<34>Oct 11 22:14:15 : a message", |_| 2019, Some(Utc.fix())).unwrap(),
@@ -131,13 +130,40 @@ mod tests {
                     protocol: Protocol::RFC3164,
                     facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
-                    timestamp: Some(FixedOffset::west(0).ymd(2019, 10, 11).and_hms(22, 14, 15)),
+                    timestamp: Some(Utc.ymd(2019, 10, 11).and_hms(22, 14, 15).into()),
                     hostname: None,
                     appname: None,
                     procid: None,
                     msgid: None,
                     structured_data: vec![],
                     msg: "a message",
+                }
+            )
+        );
+    }
+
+    #[test]
+    fn parse_3164_no_tag_json_msg() {
+        /* We can parse a missing appname and procname with no `:` message divider only if there are two spaces after the hostname.
+        Otherwise the message is going to be confused with the appname.
+        */
+        let msg = r#"<134>Oct 30 16:05:54 opsaudit  {\"username\": \"admin\", \"ip\": \"7.7.7.7\", \"type\": \"\", \"user_agent\": \"Go-http-client/1.1\", \"datetime\": \"2020-10-30 16:05:45\", \"mfa\": 0, \"status\": true, \"city\": \"局域网\", \"optype\": \"user-login\"}"#;
+
+        assert_eq!(
+            parse(msg, |_| 2020, Some(Utc.fix())).unwrap(),
+            (
+                "",
+                Message {
+                    facility: Some(SyslogFacility::LOG_LOCAL0),
+                    severity: Some(SyslogSeverity::SEV_INFO),
+                    timestamp: Some(Utc.ymd(2020, 10, 30).and_hms_milli(16, 05, 54, 0).into()),
+                    hostname: Some("opsaudit"),
+                    appname: None,
+                    procid: None,
+                    msgid: None,
+                    protocol: Protocol::RFC3164,
+                    structured_data: vec![],
+                    msg: r#"{\"username\": \"admin\", \"ip\": \"7.7.7.7\", \"type\": \"\", \"user_agent\": \"Go-http-client/1.1\", \"datetime\": \"2020-10-30 16:05:45\", \"mfa\": 0, \"status\": true, \"city\": \"局域网\", \"optype\": \"user-login\"}"#,
                 }
             )
         );
@@ -153,7 +179,7 @@ mod tests {
                     protocol: Protocol::RFC3164,
                     facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
-                    timestamp: Some(FixedOffset::west(0).ymd(2019, 10, 11).and_hms(22, 14, 15)),
+                    timestamp: Some(Utc.ymd(2019, 10, 11).and_hms(22, 14, 15).into()),
                     hostname: None,
                     appname: None,
                     procid: None,
@@ -180,7 +206,7 @@ mod tests {
                     protocol: Protocol::RFC3164,
                     facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
-                    timestamp: Some(FixedOffset::west(0).ymd(2019, 10, 11).and_hms(22, 14, 15)),
+                    timestamp: Some(Utc.ymd(2019, 10, 11).and_hms(22, 14, 15).into()),
                     hostname: Some("mymachine"),
                     appname: None,
                     procid: None,
@@ -202,7 +228,7 @@ mod tests {
                     protocol: Protocol::RFC3164,
                     facility: Some(SyslogFacility::LOG_LPR,),
                     severity: Some(SyslogSeverity::SEV_INFO,),
-                    timestamp: Some(FixedOffset::west(0).ymd(1970, 01, 01).and_hms(0, 1, 31)),
+                    timestamp: Some(Utc.ymd(1970, 01, 01).and_hms(0, 1, 31).into()),
                     hostname: Some("host",),
                     appname: None,
                     procid: None,
@@ -229,7 +255,7 @@ mod tests {
                     protocol: Protocol::RFC3164,
                     facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
-                    timestamp: Some(FixedOffset::west(0).ymd(2019, 10, 11).and_hms(22, 14, 15)),
+                    timestamp: Some(Utc.ymd(2019, 10, 11).and_hms(22, 14, 15).into()),
                     hostname: Some("mymachine"),
                     appname: Some("app"),
                     procid: Some(ProcId::PID(323)),
