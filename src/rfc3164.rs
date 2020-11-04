@@ -9,7 +9,7 @@ use crate::{
 use chrono::prelude::*;
 use nom::{
     bytes::complete::{is_not, tag, take_while},
-    character::complete::{space0, space1},
+    character::complete::space0,
     combinator::{map, opt, rest},
     sequence::{delimited, preceded, tuple},
     IResult,
@@ -69,8 +69,8 @@ where
             pri,
             opt(space0),
             timestamp_3164(get_year, tz),
-            opt(preceded(space1, hostname)),
-            opt(preceded(space1, tagname)),
+            opt(preceded(tag(" "), hostname)),
+            opt(preceded(tag(" "), tagname)),
             opt(space0),
             opt(tag(":")),
             opt(space0),
