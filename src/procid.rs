@@ -26,9 +26,9 @@ impl From<ProcId<&str>> for ProcId<String> {
 
 impl<'a> From<&'a str> for ProcId<&'a str> {
     fn from(s: &str) -> ProcId<&str> {
-       match s.parse() {
-           Ok(pid) => ProcId::PID(pid),
-           Err(_) => ProcId::Name(s),
-       }
+        match s.parse() {
+            Ok(pid) => ProcId::PID(pid),
+            Err(_) => ProcId::Name(s),
+        }
     }
 }

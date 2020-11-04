@@ -1,9 +1,8 @@
 use crate::pri::{compose_pri, SyslogFacility, SyslogSeverity};
-use crate::structured_data;
 use crate::procid::ProcId;
+use crate::structured_data;
 use chrono::prelude::*;
 use std::fmt;
-
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Protocol {
@@ -28,7 +27,7 @@ pub struct Message<S: AsRef<str> + Ord + PartialEq + Clone> {
 impl<S: AsRef<str> + Ord + PartialEq + Clone> fmt::Display for Message<S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let empty = "-".to_string();
-        
+
         write!(
             f,
             "<{}>{} {} {} ",
@@ -38,43 +37,37 @@ impl<S: AsRef<str> + Ord + PartialEq + Clone> fmt::Display for Message<S> {
             ),
             match self.protocol {
                 Protocol::RFC3164 => "".to_string(),
-                Protocol::RFC5424(version) => version.to_string()
+                Protocol::RFC5424(version) => version.to_string(),
             },
             self.timestamp.unwrap_or(Utc::now().into()).to_rfc3339(),
-            self.hostname
-                .as_ref()
-                .map(|s| s.as_ref())
-                .unwrap_or(&empty)
+            self.hostname.as_ref().map(|s| s.as_ref()).unwrap_or(&empty)
         )?;
-        
+
         match self.protocol {
             Protocol::RFC5424(_) => {
-                write!(f, "{} ", self.appname
-                       .as_ref()
-                       .map(|s| s.as_ref())
-                       .unwrap_or(&empty))?;
+                write!(
+                    f,
+                    "{} ",
+                    self.appname.as_ref().map(|s| s.as_ref()).unwrap_or(&empty)
+                )?;
                 match &self.procid {
                     None => write!(f, "- ")?,
                     Some(procid) => write!(f, "{} ", procid)?,
                 };
             }
-            Protocol::RFC3164 =>
-                match (&self.appname, &self.procid) {
-                    (Some(appname), Some(procid)) =>
-                        write!(f, "{}[{}]: ", appname.as_ref(), procid)?,
-                     (Some(appname), None) =>
-                        write!(f, "{}: ", appname.as_ref())?,
-                    _ => 
-                        write!(f, ": ")?,
-                }
+            Protocol::RFC3164 => match (&self.appname, &self.procid) {
+                (Some(appname), Some(procid)) => write!(f, "{}[{}]: ", appname.as_ref(), procid)?,
+                (Some(appname), None) => write!(f, "{}: ", appname.as_ref())?,
+                _ => write!(f, ": ")?,
+            },
         }
-                
 
         if let Protocol::RFC5424(_) = self.protocol {
-            write!(f, "{} ", self.msgid
-                   .as_ref()
-                   .map(|s| s.as_ref())
-                   .unwrap_or(&empty))?;
+            write!(
+                f,
+                "{} ",
+                self.msgid.as_ref().map(|s| s.as_ref()).unwrap_or(&empty)
+            )?;
         }
 
         if self.structured_data.len() == 0 {
@@ -126,6 +119,3 @@ impl From<Message<&str>> for Message<String> {
         }
     }
 }
-
-
-

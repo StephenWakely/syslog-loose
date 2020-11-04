@@ -1,14 +1,14 @@
 ///! Parsers for rfc 5424 specific formats.
 use crate::{
-    message::{Protocol, Message},
+    message::{Message, Protocol},
     parsers::{appname, digits, hostname, msgid, procid},
     pri::pri,
-    timestamp::timestamp_3339,
     structured_data::structured_data,
+    timestamp::timestamp_3339,
 };
 use nom::{
     character::complete::{space0, space1},
-    combinator::{rest, map},
+    combinator::{map, rest},
     sequence::tuple,
     IResult,
 };
@@ -22,10 +22,41 @@ fn version(input: &str) -> IResult<&str, u32> {
 pub(crate) fn parse(input: &str) -> IResult<&str, Message<&str>> {
     map(
         tuple((
-            pri, version, space1, timestamp_3339, space1, hostname, space1, appname, space1, procid,
-            space1, msgid, space0, structured_data, space0, rest,
+            pri,
+            version,
+            space1,
+            timestamp_3339,
+            space1,
+            hostname,
+            space1,
+            appname,
+            space1,
+            procid,
+            space1,
+            msgid,
+            space0,
+            structured_data,
+            space0,
+            rest,
         )),
-        |(pri, version, _, timestamp, _, hostname, _, appname, _, procid, _, msgid, _, structured_data, _, msg)| Message {
+        |(
+            pri,
+            version,
+            _,
+            timestamp,
+            _,
+            hostname,
+            _,
+            appname,
+            _,
+            procid,
+            _,
+            msgid,
+            _,
+            structured_data,
+            _,
+            msg,
+        )| Message {
             protocol: Protocol::RFC5424(version),
             facility: pri.0,
             severity: pri.1,
@@ -35,7 +66,7 @@ pub(crate) fn parse(input: &str) -> IResult<&str, Message<&str>> {
             procid: procid.map(|p| p.into()),
             msgid,
             structured_data,
-            msg
+            msg,
         },
     )(input)
 }
@@ -49,7 +80,8 @@ mod tests {
     #[test]
     fn parse_5424() {
         assert_eq!(
-            parse("<34>1 2003-10-11T22:14:15.003Z mymachine.example.com su - ID47 - message").unwrap(),
+            parse("<34>1 2003-10-11T22:14:15.003Z mymachine.example.com su - ID47 - message")
+                .unwrap(),
             (
                 "",
                 Message {

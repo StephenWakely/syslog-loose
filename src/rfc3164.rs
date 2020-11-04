@@ -168,7 +168,12 @@ mod tests {
     #[test]
     fn parse_3164_timestamp_host() {
         assert_eq!(
-            parse("<34>Oct 11 22:14:15 mymachine: a message", |_| 2019, Some(Utc.fix())).unwrap(),
+            parse(
+                "<34>Oct 11 22:14:15 mymachine: a message",
+                |_| 2019,
+                Some(Utc.fix())
+            )
+            .unwrap(),
             (
                 "",
                 Message {

@@ -1,10 +1,7 @@
 ///! Parsers shared by both protocols.
 use nom::{
-    bytes::complete::take_while1,
-    character::complete::digit1,
-    combinator::map,
-    combinator::map_res,
-    IResult,
+    bytes::complete::take_while1, character::complete::digit1, combinator::map,
+    combinator::map_res, IResult,
 };
 use std::str::FromStr;
 
@@ -65,5 +62,8 @@ fn parse_optional_exclamations() {
 
 #[test]
 fn appname_can_have_colons() {
-    assert_eq!(appname("OX-XXX-CONTEUDO:rpd"), Ok(("", Some("OX-XXX-CONTEUDO:rpd"))));
+    assert_eq!(
+        appname("OX-XXX-CONTEUDO:rpd"),
+        Ok(("", Some("OX-XXX-CONTEUDO:rpd")))
+    );
 }

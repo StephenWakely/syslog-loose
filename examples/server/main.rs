@@ -20,6 +20,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let (data_read, _) = socket.recv_from(&mut buf)?;
         let line = std::str::from_utf8(&buf[0..data_read])?;
         println!("{}", line);
-        println!("{:#?}", syslog_loose::parse_message_with_year(&line, resolve_year));
+        println!(
+            "{:#?}",
+            syslog_loose::parse_message_with_year(&line, resolve_year)
+        );
     }
 }
