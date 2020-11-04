@@ -20,10 +20,9 @@ fn parse_nginx() {
     assert_eq!(
         parse_message_with_year(msg, with_year),
         Message {
-
             facility: Some(SyslogFacility::LOG_LOCAL7),
             severity: Some(SyslogSeverity::SEV_INFO),
-            timestamp: Some(FixedOffset::west(0).ymd(2019, 12, 28).and_hms(16, 49, 07)),
+            timestamp: Some(Local.ymd(2019, 12, 28).and_hms(16, 49, 07).into()),
             hostname: Some("plertrood-thinkpad-x220"),
             appname: Some("nginx"),
             procid: None,
@@ -45,11 +44,7 @@ fn parse_rsyslog() {
         Message {
             facility: Some(SyslogFacility::LOG_SYSLOG),
             severity: Some(SyslogSeverity::SEV_INFO),
-            timestamp: Some(
-                FixedOffset::west(0)
-                    .ymd(2020, 1, 5)
-                    .and_hms_milli(15, 33, 3, 0)
-            ),
+            timestamp: Some(Local.ymd(2020, 1, 5).and_hms_milli(15, 33, 3, 0).into()),
             hostname: Some("plertrood-ThinkPad-X220"),
             appname: Some("rsyslogd"),
             procid: None,
@@ -78,11 +73,7 @@ fn parse_haproxy() {
         Message {
             facility: Some(SyslogFacility::LOG_LOCAL0),
             severity: Some(SyslogSeverity::SEV_NOTICE),
-            timestamp: Some(
-                FixedOffset::west(0)
-                    .ymd(2020, 1, 13)
-                    .and_hms_milli(16, 33, 35, 0)
-            ),
+            timestamp: Some(Local.ymd(2020, 1, 13).and_hms_milli(16, 33, 35, 0).into()),
             hostname: None,
             appname: Some("haproxy"),
             procid: Some(ProcId::PID(73411)),
@@ -200,11 +191,7 @@ fn parse_3164_invalid_structured_data() {
         Message {
             facility: Some(SyslogFacility::LOG_SYSLOG),
             severity: Some(SyslogSeverity::SEV_INFO),
-            timestamp: Some(
-                FixedOffset::west(0)
-                    .ymd(2020, 1, 5)
-                    .and_hms_milli(15, 33, 3, 0)
-            ),
+            timestamp: Some(Local.ymd(2020, 1, 5).and_hms_milli(15, 33, 3, 0).into()),
             hostname: Some("plertrood-ThinkPad-X220"),
             appname: Some("rsyslogd"),
             procid: None,
@@ -225,11 +212,7 @@ fn parse_3164_no_tag() {
         Message {
             facility: Some(SyslogFacility::LOG_SYSLOG),
             severity: Some(SyslogSeverity::SEV_INFO),
-            timestamp: Some(
-                FixedOffset::west(0)
-                    .ymd(2020, 1, 5)
-                    .and_hms_milli(15, 33, 3, 0)
-            ),
+            timestamp: Some(Local.ymd(2020, 1, 5).and_hms_milli(15, 33, 3, 0).into()),
             hostname: Some("plertrood-ThinkPad-X220"),
             appname: None,
             procid: None,
@@ -250,11 +233,7 @@ fn parse_european_chars() {
         Message {
             facility: Some(SyslogFacility::LOG_SYSLOG),
             severity: Some(SyslogSeverity::SEV_INFO),
-            timestamp: Some(
-                FixedOffset::west(0)
-                    .ymd(2020, 1, 5)
-                    .and_hms_milli(10, 1, 0, 0)
-            ),
+            timestamp: Some(Local.ymd(2020, 1, 5).and_hms_milli(10, 1, 0, 0).into()),
             hostname: Some("Übergröße"),
             appname: Some("außerplanmäßig"),
             procid: None,
@@ -558,7 +537,7 @@ fn syslog_ng_default_network() {
         Message {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
-            timestamp: Some(FixedOffset::west(0).ymd(2020, 02, 13).and_hms(20, 07, 26)),
+            timestamp: Some(Local.ymd(2020, 02, 13).and_hms(20, 07, 26).into()),
             hostname: Some("74794bfb6795"),
             appname: Some("root"),
             procid: Some(ProcId::PID(8539)),
@@ -579,7 +558,7 @@ fn rsyslog_omfwd_tcp_default() {
         Message {
             facility: Some(SyslogFacility::LOG_LOCAL7),
             severity: Some(SyslogSeverity::SEV_INFO),
-            timestamp: Some(FixedOffset::west(0).ymd(2020, 02, 13).and_hms(21, 31, 56)),
+            timestamp: Some(Local.ymd(2020, 02, 13).and_hms(21, 31, 56).into()),
             hostname: Some("74794bfb6795"),
             appname: Some("liblogging-stdlog"),
             procid: None,
