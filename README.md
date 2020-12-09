@@ -19,7 +19,7 @@ Lets look at a sample message:
 <34>Oct 11 22:14:15 mymachine su: 'su root' failed for lonvick on /dev/pts/8
 ```
 
-The first field `<34>` is a combination of the facility and severity of the message. This is mandatory in all messages and is the same for 3164 and 5424. See [here](https://tools.ietf.org/html/rfc3164#section-4.1.1).
+The first field `<34>` is a combination of the facility and severity of the message. This can be missing, if so `None` is returned for both fields. See [here](https://tools.ietf.org/html/rfc3164#section-4.1.1).
 
 The date field, technically for 3164 it needs to be in the format `MMM DD HH:MM:SS`. There is no year specified. It is possible to pass a function to `parse_message_with_year` that you can use to resolve the year. For example, you may want to resolve all dates to the current year unless it is the 1st January and you have a log message from the 31st December.
 

@@ -635,3 +635,50 @@ fn logical_system_juniper_routers() {
         }
     );
 }
+
+#[test]
+fn parse_missing_pri() {
+    let msg = "Dec 28 16:49:07 plertrood-thinkpad-x220 nginx: 127.0.0.1 - - [28/Dec/2019:16:49:07 +0000] \"GET / HTTP/1.1\" 304 0 \"-\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0\"";
+
+    assert_eq!(
+        parse_message_with_year(msg, with_year),
+        Message {
+            facility: None,
+            severity: None,
+            timestamp: Some(Local.ymd(2019, 12, 28).and_hms(16, 49, 07).into()),
+            hostname: Some("plertrood-thinkpad-x220"),
+            appname: Some("nginx"),
+            procid: None,
+            msgid: None,
+            protocol: Protocol::RFC3164,
+            structured_data: vec![],
+            msg: "127.0.0.1 - - [28/Dec/2019:16:49:07 +0000] \"GET / HTTP/1.1\" 304 0 \"-\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0\"",
+        }
+    );
+}
+
+
+#[test]
+fn parse_missing_pri_5424() {
+    let raw = r#"1 2020-05-22T14:59:09.250-03:00 OX-XXX-MX204 OX-XXX-CONTEUDO:rpd 6589 - - bgp_listen_accept: %DAEMON-4: Connection attempt from unconfigured neighbor: 2001:XXX::219:166+57284"#;
+
+    assert_eq!(
+        parse_message_with_year(&raw, with_year),
+        Message {
+            facility: None,
+            severity: None,
+            timestamp: Some(
+                FixedOffset::west(1800 * 6)
+                    .ymd(2020, 05, 22)
+                    .and_hms_micro(14, 59, 09, 250000)
+            ),
+            hostname: Some("OX-XXX-MX204"),
+            appname: Some("OX-XXX-CONTEUDO:rpd"),
+            procid: Some(ProcId::PID(6589)),
+            msgid: None,
+            protocol: Protocol::RFC5424(1),
+            structured_data: vec![],
+            msg: "bgp_listen_accept: %DAEMON-4: Connection attempt from unconfigured neighbor: 2001:XXX::219:166+57284",
+        }
+    );
+}
