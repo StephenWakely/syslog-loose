@@ -86,8 +86,8 @@ mod tests {
                 "",
                 Message {
                     protocol: Protocol::RFC5424(1),
-                    facility: Some(SyslogFacility::LOG_AUTH),
-                    severity: Some(SyslogSeverity::SEV_CRIT),
+                    facility: SyslogFacility::LOG_AUTH,
+                    severity: SyslogSeverity::SEV_CRIT,
                     timestamp: Some(
                         FixedOffset::west(0)
                             .ymd(2003, 10, 11)

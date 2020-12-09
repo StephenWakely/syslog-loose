@@ -13,8 +13,8 @@ pub enum Protocol {
 #[derive(Clone, Debug)]
 pub struct Message<S: AsRef<str> + Ord + PartialEq + Clone> {
     pub protocol: Protocol,
-    pub facility: Option<SyslogFacility>,
-    pub severity: Option<SyslogSeverity>,
+    pub facility: SyslogFacility,
+    pub severity: SyslogSeverity,
     pub timestamp: Option<DateTime<FixedOffset>>,
     pub hostname: Option<S>,
     pub appname: Option<S>,
@@ -32,8 +32,8 @@ impl<S: AsRef<str> + Ord + PartialEq + Clone> fmt::Display for Message<S> {
             f,
             "<{}>{} {} {} ",
             compose_pri(
-                self.facility.unwrap_or(SyslogFacility::LOG_SYSLOG),
-                self.severity.unwrap_or(SyslogSeverity::SEV_DEBUG)
+                self.facility,
+                self.severity
             ),
             match self.protocol {
                 Protocol::RFC3164 => "".to_string(),

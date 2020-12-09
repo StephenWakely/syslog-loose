@@ -20,8 +20,8 @@ fn parse_nginx() {
     assert_eq!(
         parse_message_with_year(msg, with_year),
         Message {
-            facility: Some(SyslogFacility::LOG_LOCAL7),
-            severity: Some(SyslogSeverity::SEV_INFO),
+            facility: SyslogFacility::LOG_LOCAL7,
+            severity: SyslogSeverity::SEV_INFO,
             timestamp: Some(Local.ymd(2019, 12, 28).and_hms(16, 49, 07).into()),
             hostname: Some("plertrood-thinkpad-x220"),
             appname: Some("nginx"),
@@ -42,8 +42,8 @@ fn parse_rsyslog() {
     assert_eq!(
         parse_message_with_year(msg, with_year),
         Message {
-            facility: Some(SyslogFacility::LOG_SYSLOG),
-            severity: Some(SyslogSeverity::SEV_INFO),
+            facility: SyslogFacility::LOG_SYSLOG,
+            severity: SyslogSeverity::SEV_INFO,
             timestamp: Some(Local.ymd(2020, 1, 5).and_hms_milli(15, 33, 3, 0).into()),
             hostname: Some("plertrood-ThinkPad-X220"),
             appname: Some("rsyslogd"),
@@ -71,8 +71,8 @@ fn parse_haproxy() {
     assert_eq!(
         parse_message_with_year(msg, with_year),
         Message {
-            facility: Some(SyslogFacility::LOG_LOCAL0),
-            severity: Some(SyslogSeverity::SEV_NOTICE),
+            facility: SyslogFacility::LOG_LOCAL0,
+            severity: SyslogSeverity::SEV_NOTICE,
             timestamp: Some(Local.ymd(2020, 1, 13).and_hms_milli(16, 33, 35, 0).into()),
             hostname: None,
             appname: Some("haproxy"),
@@ -92,8 +92,8 @@ fn parse_5424_no_structured_data() {
     assert_eq!(
         parse_message(msg),
         Message {
-            facility: Some(SyslogFacility::LOG_AUTH),
-            severity: Some(SyslogSeverity::SEV_CRIT),
+            facility: SyslogFacility::LOG_AUTH,
+            severity: SyslogSeverity::SEV_CRIT,
             timestamp: Some(
                 FixedOffset::west(0)
                     .ymd(2003, 10, 11)
@@ -117,8 +117,8 @@ fn parse_5424_structured_data() {
     assert_eq!(
         parse_message(msg),
         Message {
-            facility: Some(SyslogFacility::LOG_LOCAL4),
-            severity: Some(SyslogSeverity::SEV_NOTICE),
+            facility: SyslogFacility::LOG_LOCAL4,
+            severity: SyslogSeverity::SEV_NOTICE,
             timestamp: Some(
                 FixedOffset::west(0)
                     .ymd(2003, 10, 11)
@@ -149,8 +149,8 @@ fn parse_5424_multiple_structured_data() {
     assert_eq!(
         parse_message(msg),
         Message {
-            facility: Some(SyslogFacility::LOG_LOCAL4),
-            severity: Some(SyslogSeverity::SEV_NOTICE),
+            facility: SyslogFacility::LOG_LOCAL4,
+            severity: SyslogSeverity::SEV_NOTICE,
             timestamp: Some(
                 FixedOffset::west(0)
                     .ymd(2003, 10, 11)
@@ -189,8 +189,8 @@ fn parse_3164_invalid_structured_data() {
     assert_eq!(
         parse_message_with_year(msg, with_year),
         Message {
-            facility: Some(SyslogFacility::LOG_SYSLOG),
-            severity: Some(SyslogSeverity::SEV_INFO),
+            facility: SyslogFacility::LOG_SYSLOG,
+            severity: SyslogSeverity::SEV_INFO,
             timestamp: Some(Local.ymd(2020, 1, 5).and_hms_milli(15, 33, 3, 0).into()),
             hostname: Some("plertrood-ThinkPad-X220"),
             appname: Some("rsyslogd"),
@@ -210,8 +210,8 @@ fn parse_3164_no_tag() {
     assert_eq!(
         parse_message_with_year(msg, with_year),
         Message {
-            facility: Some(SyslogFacility::LOG_SYSLOG),
-            severity: Some(SyslogSeverity::SEV_INFO),
+            facility: SyslogFacility::LOG_SYSLOG,
+            severity: SyslogSeverity::SEV_INFO,
             timestamp: Some(Local.ymd(2020, 1, 5).and_hms_milli(15, 33, 3, 0).into()),
             hostname: Some("plertrood-ThinkPad-X220"),
             appname: None,
@@ -231,8 +231,8 @@ fn parse_european_chars() {
     assert_eq!(
         parse_message_with_year(msg, with_year),
         Message {
-            facility: Some(SyslogFacility::LOG_SYSLOG),
-            severity: Some(SyslogSeverity::SEV_INFO),
+            facility: SyslogFacility::LOG_SYSLOG,
+            severity: SyslogSeverity::SEV_INFO,
             timestamp: Some(Local.ymd(2020, 1, 5).and_hms_milli(10, 1, 0, 0).into()),
             hostname: Some("Übergröße"),
             appname: Some("außerplanmäßig"),
@@ -252,8 +252,8 @@ fn parse_invalid_message() {
     assert_eq!(
         parse_message_with_year(msg, with_year),
         Message {
-            facility: None,
-            severity: None,
+            facility: SyslogFacility::LOG_USER,
+            severity: SyslogSeverity::SEV_NOTICE,
             timestamp: None,
             hostname: None,
             appname: None,
@@ -269,8 +269,8 @@ fn parse_invalid_message() {
 #[test]
 fn parse_blank_msg() {
     let ook = Message {
-        facility: Some(SyslogFacility::LOG_CRON),
-        severity: Some(SyslogSeverity::SEV_ERR),
+        facility: SyslogFacility::LOG_CRON,
+        severity: SyslogSeverity::SEV_ERR,
         timestamp: Some(
             FixedOffset::west(0)
                 .ymd(1969, 12, 3)
@@ -291,8 +291,8 @@ fn parse_blank_msg() {
     assert_eq!(
         parse_message(&msg),
         Message {
-            facility: Some(SyslogFacility::LOG_CRON),
-            severity: Some(SyslogSeverity::SEV_ERR),
+            facility: SyslogFacility::LOG_CRON,
+            severity: SyslogSeverity::SEV_ERR,
             timestamp: Some(
                 FixedOffset::west(0)
                     .ymd(1969, 12, 3)
@@ -329,8 +329,8 @@ fn syslog_ng_network_syslog_protocol() {
     assert_eq!(
         parse_message(&raw),
         Message {
-            facility: Some(SyslogFacility::LOG_USER),
-            severity: Some(SyslogSeverity::SEV_NOTICE),
+            facility: SyslogFacility::LOG_USER,
+            severity: SyslogSeverity::SEV_NOTICE,
             timestamp: Some(
                 FixedOffset::west(0)
                     .ymd(2019, 02, 13)
@@ -364,8 +364,8 @@ fn handles_incorrect_sd_element() {
     );
 
     let should = Message {
-        facility: Some(SyslogFacility::LOG_USER),
-        severity: Some(SyslogSeverity::SEV_NOTICE),
+        facility: SyslogFacility::LOG_USER,
+        severity: SyslogSeverity::SEV_NOTICE,
         timestamp: Some(
             FixedOffset::west(0)
                 .ymd(2019, 02, 13)
@@ -400,8 +400,8 @@ fn handles_empty_sd_element() {
     assert_eq!(
         parse_message(&msg),
         Message {
-            facility: Some(SyslogFacility::LOG_USER),
-            severity: Some(SyslogSeverity::SEV_NOTICE),
+            facility: SyslogFacility::LOG_USER,
+            severity: SyslogSeverity::SEV_NOTICE,
             timestamp: Some(
                 FixedOffset::west(0)
                     .ymd(2019, 02, 13)
@@ -428,8 +428,8 @@ fn handles_empty_sd_element() {
     assert_eq!(
         parse_message(&msg),
         Message {
-            facility: Some(SyslogFacility::LOG_USER),
-            severity: Some(SyslogSeverity::SEV_NOTICE),
+            facility: SyslogFacility::LOG_USER,
+            severity: SyslogSeverity::SEV_NOTICE,
             timestamp: Some(
                 FixedOffset::west(0)
                     .ymd(2019, 02, 13)
@@ -462,8 +462,8 @@ fn handles_empty_sd_element() {
     assert_eq!(
         parse_message(&msg),
         Message {
-            facility: Some(SyslogFacility::LOG_USER),
-            severity: Some(SyslogSeverity::SEV_NOTICE),
+            facility: SyslogFacility::LOG_USER,
+            severity: SyslogSeverity::SEV_NOTICE,
             timestamp: Some(
                 FixedOffset::west(0)
                     .ymd(2019, 02, 13)
@@ -496,8 +496,8 @@ fn handles_empty_sd_element() {
     assert_eq!(
         parse_message(&msg),
         Message {
-            facility: Some(SyslogFacility::LOG_USER),
-            severity: Some(SyslogSeverity::SEV_NOTICE),
+            facility: SyslogFacility::LOG_USER,
+            severity: SyslogSeverity::SEV_NOTICE,
             timestamp: Some(
                 FixedOffset::west(0)
                     .ymd(2019, 02, 13)
@@ -535,8 +535,8 @@ fn syslog_ng_default_network() {
     assert_eq!(
         parse_message_with_year(&raw, with_year),
         Message {
-            facility: Some(SyslogFacility::LOG_USER),
-            severity: Some(SyslogSeverity::SEV_NOTICE),
+            facility: SyslogFacility::LOG_USER,
+            severity: SyslogSeverity::SEV_NOTICE,
             timestamp: Some(Local.ymd(2020, 02, 13).and_hms(20, 07, 26).into()),
             hostname: Some("74794bfb6795"),
             appname: Some("root"),
@@ -556,8 +556,8 @@ fn rsyslog_omfwd_tcp_default() {
     assert_eq!(
         parse_message_with_year(&raw, with_year),
         Message {
-            facility: Some(SyslogFacility::LOG_LOCAL7),
-            severity: Some(SyslogSeverity::SEV_INFO),
+            facility: SyslogFacility::LOG_LOCAL7,
+            severity: SyslogSeverity::SEV_INFO,
             timestamp: Some(Local.ymd(2020, 02, 13).and_hms(21, 31, 56).into()),
             hostname: Some("74794bfb6795"),
             appname: Some("liblogging-stdlog"),
@@ -585,8 +585,8 @@ fn rsyslog_omfwd_tcp_forward_format() {
     assert_eq!(
         parse_message_with_year(&raw, with_year),
         Message {
-            facility: Some(SyslogFacility::LOG_LOCAL7),
-            severity: Some(SyslogSeverity::SEV_INFO),
+            facility: SyslogFacility::LOG_LOCAL7,
+            severity: SyslogSeverity::SEV_INFO,
             timestamp: Some(
                 FixedOffset::west(0)
                     .ymd(2019, 02, 13)
@@ -618,8 +618,8 @@ fn logical_system_juniper_routers() {
     assert_eq!(
         parse_message_with_year(&raw, with_year),
         Message {
-            facility: Some(SyslogFacility::LOG_DAEMON),
-            severity: Some(SyslogSeverity::SEV_WARNING),
+            facility: SyslogFacility::LOG_DAEMON,
+            severity: SyslogSeverity::SEV_WARNING,
             timestamp: Some(
                 FixedOffset::west(1800 * 6)
                     .ymd(2020, 05, 22)
@@ -632,6 +632,27 @@ fn logical_system_juniper_routers() {
             protocol: Protocol::RFC5424(1),
             structured_data: vec![],
             msg: "bgp_listen_accept: %DAEMON-4: Connection attempt from unconfigured neighbor: 2001:XXX::219:166+57284",
+        }
+    );
+}
+
+#[test]
+fn parse_missing_pri() {
+    let msg = "Dec 28 16:49:07 plertrood-thinkpad-x220 nginx: 127.0.0.1 - - [28/Dec/2019:16:49:07 +0000] \"GET / HTTP/1.1\" 304 0 \"-\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0\"";
+
+    assert_eq!(
+        parse_message_with_year(msg, with_year),
+        Message {
+            facility: SyslogFacility::LOG_USER,
+            severity: SyslogSeverity::SEV_NOTICE,
+            timestamp: Some(Local.ymd(2019, 12, 28).and_hms(16, 49, 07).into()),
+            hostname: Some("plertrood-thinkpad-x220"),
+            appname: Some("nginx"),
+            procid: None,
+            msgid: None,
+            protocol: Protocol::RFC3164,
+            structured_data: vec![],
+            msg: "127.0.0.1 - - [28/Dec/2019:16:49:07 +0000] \"GET / HTTP/1.1\" 304 0 \"-\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0\"",
         }
     );
 }

@@ -1,5 +1,5 @@
 use crate::parsers::digits;
-use nom::{bytes::complete::tag, combinator::map, sequence::delimited, IResult};
+use nom::{bytes::complete::tag, combinator::map, combinator::opt, sequence::delimited, IResult};
 
 // Taken from https://github.com/Roguelazer/rust-syslog-rfc5424/blob/af76363081314f91433e014c76fd834acef756d5/src/facility.rs
 // Many thanks.
@@ -151,14 +151,17 @@ impl SyslogSeverity {
 
 /// The pri field is composed of both the facility and severity values.
 /// The first byte is the Severity, the remaining are the Facility.
-pub fn decompose_pri(pri: u8) -> (Option<SyslogFacility>, Option<SyslogSeverity>) {
+pub fn decompose_pri(pri: u8) -> (SyslogFacility, SyslogSeverity) {
     let facility = pri >> 3;
     let severity = pri & 0x7;
 
-    (
+    match (
         SyslogFacility::from_int(facility as i32),
         SyslogSeverity::from_int(severity as i32),
-    )
+    ) {
+        (Some(facility), Some(severity)) => (facility, severity),
+        _ => (SyslogFacility::LOG_USER, SyslogSeverity::SEV_NOTICE),
+    }
 }
 
 /// Compose the facility and severity as a single integer.
@@ -168,8 +171,15 @@ pub(crate) fn compose_pri(facility: SyslogFacility, severity: SyslogSeverity) ->
 
 // The message priority. An integer surrounded by <>
 // This number contains both the facility and the severity.
-pub(crate) fn pri(input: &str) -> IResult<&str, (Option<SyslogFacility>, Option<SyslogSeverity>)> {
-    delimited(tag("<"), map(digits, |pri| decompose_pri(pri)), tag(">"))(input)
+pub(crate) fn pri(input: &str) -> IResult<&str, (SyslogFacility, SyslogSeverity)> {
+    map(
+        opt(delimited(
+            tag("<"),
+            map(digits, |pri| decompose_pri(pri)),
+            tag(">"),
+        )),
+        |pri| pri.unwrap_or_else(|| decompose_pri(13)),
+    )(input)
 }
 
 #[test]
@@ -184,18 +194,22 @@ fn test_pri_composes() {
 fn test_pri_decomposes() {
     assert_eq!(
         decompose_pri(0),
-        (
-            Some(SyslogFacility::LOG_KERN),
-            Some(SyslogSeverity::SEV_EMERG)
-        )
+        (SyslogFacility::LOG_KERN, SyslogSeverity::SEV_EMERG)
+    );
+
+    assert_eq!(
+        decompose_pri(13),
+        (SyslogFacility::LOG_USER, SyslogSeverity::SEV_NOTICE)
     );
 
     assert_eq!(
         decompose_pri(165),
-        (
-            Some(SyslogFacility::LOG_LOCAL4),
-            Some(SyslogSeverity::SEV_NOTICE)
-        )
+        (SyslogFacility::LOG_LOCAL4, SyslogSeverity::SEV_NOTICE)
+    );
+
+    assert_eq!(
+        decompose_pri(255),
+        (SyslogFacility::LOG_USER, SyslogSeverity::SEV_NOTICE)
     );
 }
 
@@ -207,12 +221,17 @@ mod tests {
     fn parse_pri() {
         assert_eq!(
             pri("<34>").unwrap(),
+            ("", (SyslogFacility::LOG_AUTH, SyslogSeverity::SEV_CRIT))
+        );
+    }
+
+    #[test]
+    fn parse_missing_pri() {
+        assert_eq!(
+            pri("1 xxx").unwrap(),
             (
-                "",
-                (
-                    Some(SyslogFacility::LOG_AUTH),
-                    Some(SyslogSeverity::SEV_CRIT)
-                )
+                "1 xxx",
+                (SyslogFacility::LOG_USER, SyslogSeverity::SEV_NOTICE)
             )
         );
     }

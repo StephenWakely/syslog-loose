@@ -51,8 +51,8 @@ where
             // If we fail to parse, the entire input becomes the message
             // the rest of the fields are empty.
             Message {
-                facility: None,
-                severity: None,
+                facility: SyslogFacility::LOG_USER,
+                severity: SyslogSeverity::SEV_NOTICE,
                 timestamp: None,
                 hostname: None,
                 appname: None,
