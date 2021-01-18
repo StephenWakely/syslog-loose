@@ -3,7 +3,7 @@ use nom::{
     bytes::complete::{escaped, tag, take_till1, take_until, take_while1},
     character::complete::{one_of, space0},
     combinator::map,
-    multi::{many1, separated_list},
+    multi::{many1, separated_list0},
     sequence::{delimited, separated_pair, terminated, tuple},
     IResult,
 };
@@ -93,7 +93,7 @@ fn structured_datum(input: &str) -> IResult<&str, Option<StructuredElement<&str>
                 tuple((
                     take_till1(|c: char| c.is_whitespace() || c == ']' || c == '='),
                     space0,
-                    separated_list(tag(" "), param),
+                    separated_list0(tag(" "), param),
                 )),
                 |(id, _, params)| Some(StructuredElement { id, params }),
             ),
