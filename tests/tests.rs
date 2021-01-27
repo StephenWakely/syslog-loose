@@ -1,7 +1,7 @@
 use chrono::prelude::*;
 use syslog_loose::{
-    parse_message, parse_message_with_year, IncompleteDate, Message, ProcId, Protocol,
-    StructuredElement, SyslogFacility, SyslogSeverity,
+    parse_message, parse_message_with_year, parse_message_with_year_exact, IncompleteDate, Message,
+    ProcId, Protocol, StructuredElement, SyslogFacility, SyslogSeverity,
 };
 
 fn with_year((month, _date, _hour, _min, _sec): IncompleteDate) -> i32 {
@@ -657,7 +657,6 @@ fn parse_missing_pri() {
     );
 }
 
-
 #[test]
 fn parse_missing_pri_5424() {
     let raw = r#"1 2020-05-22T14:59:09.250-03:00 OX-XXX-MX204 OX-XXX-CONTEUDO:rpd 6589 - - bgp_listen_accept: %DAEMON-4: Connection attempt from unconfigured neighbor: 2001:XXX::219:166+57284"#;
@@ -680,5 +679,15 @@ fn parse_missing_pri_5424() {
             structured_data: vec![],
             msg: "bgp_listen_accept: %DAEMON-4: Connection attempt from unconfigured neighbor: 2001:XXX::219:166+57284",
         }
+    );
+}
+
+#[test]
+fn parse_exact_error() {
+    let raw = r#"I am an invalid syslog message, but I do like cheese"#;
+
+    assert_eq!(
+        parse_message_with_year_exact(&raw, with_year),
+        Err("Unable to parse input as valid syslog message".to_string())
     );
 }
