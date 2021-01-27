@@ -110,5 +110,5 @@ where
 {
     parse(input, get_year, None)
         .map(|(_, result)| result)
-        .map_err(|_| "Unable to parse input as valid syslog message".to_string())
+        .map_err(|_| "unable to parse input as valid syslog message".to_string())
 }

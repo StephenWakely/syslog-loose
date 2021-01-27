@@ -688,6 +688,6 @@ fn parse_exact_error() {
 
     assert_eq!(
         parse_message_with_year_exact(&raw, with_year),
-        Err("Unable to parse input as valid syslog message".to_string())
+        Err("unable to parse input as valid syslog message".to_string())
     );
 }
