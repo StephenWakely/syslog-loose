@@ -17,7 +17,7 @@ chrono = "0.4"
 
 [dev-dependencies]
 criterion = "0.3.4"
-syslog_rfc5424 = "0.7.0"
+criterion-cycles-per-byte = "0.1.2"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 
