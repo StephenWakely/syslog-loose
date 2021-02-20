@@ -1,5 +1,4 @@
 extern crate quickcheck;
-#[macro_use(quickcheck)]
 extern crate quickcheck_macros;
 
 mod non_empty_string;
@@ -9,7 +8,7 @@ use non_empty_string::{
     AppNameString, ArbitraryString, HostNameString, NameString, NoColonString, ProcIdString,
     ValueString,
 };
-use quickcheck::{Arbitrary, Gen};
+use quickcheck::{Arbitrary, Gen, QuickCheck, TestResult};
 use syslog_loose::{decompose_pri, parse_message, Message, ProcId, Protocol, StructuredElement};
 
 /// Create a wrapper struct for us to implement Arbitrary against
@@ -23,9 +22,8 @@ impl<A> Wrapper<A> {
     }
 }
 
-pub(crate) fn gen_str<G, A>(g: &mut G) -> Option<String>
+pub(crate) fn gen_str<A>(g: &mut Gen) -> Option<String>
 where
-    G: Gen,
     A: Arbitrary + ArbitraryString,
 {
     let value: Option<A> = Arbitrary::arbitrary(g);
@@ -33,8 +31,13 @@ where
 }
 
 impl Arbitrary for Wrapper<Message<String>> {
-    fn arbitrary<G: Gen>(g: &mut G) -> Wrapper<Message<String>> {
-        let (facility, severity) = decompose_pri(Arbitrary::arbitrary(g));
+    fn arbitrary(g: &mut Gen) -> Wrapper<Message<String>> {
+        // RFC 5424 defines the priority as being a byte sized numeric from 0 to
+        // 191 inclusive. Modulo will bias the resulting priority toward the
+        // first 65 priorities. It's unfortunate that `Gen` doesn't expose its
+        // `gen_range` function, but alas.
+        let priority: u8 = u8::arbitrary(g) % 192;
+        let (facility, severity) = decompose_pri(priority);
         let msg: String = Arbitrary::arbitrary(g);
         let structured_data: Vec<Wrapper<StructuredElement<String>>> = Arbitrary::arbitrary(g);
         let protocol = if Arbitrary::arbitrary(g) {
@@ -47,7 +50,7 @@ impl Arbitrary for Wrapper<Message<String>> {
             Protocol::RFC3164 => {
                 // 3164 cant have a procid without an app name
                 // Also no Msg Id
-                let appname = gen_str::<G, AppNameString>(g);
+                let appname = gen_str::<AppNameString>(g);
                 let procid = match appname {
                     None => None,
                     Some(_) => {
@@ -58,20 +61,25 @@ impl Arbitrary for Wrapper<Message<String>> {
                 (appname, procid, None)
             }
             Protocol::RFC5424(_) => (
-                gen_str::<G, NoColonString>(g),
+                gen_str::<NoColonString>(g),
                 {
                     let procid: Option<Wrapper<ProcId<String>>> = Arbitrary::arbitrary(g);
                     procid.map(|p| p.unwrap())
                 },
-                gen_str::<G, NoColonString>(g),
+                gen_str::<NoColonString>(g),
             ),
         };
 
+        // Timestamp seconds are i64 in chrono but the parse function will panic
+        // if `nsecs` is out of range. This happens when `nsecs` is equivalent
+        // to a number of days greater than the `i32::MAX`. If we limit `secs`
+        // to i32 itself this can't happen.
+        let secs: i32 = i32::arbitrary(g);
         Wrapper(Message {
             facility,
             severity,
-            timestamp: Some(Utc.timestamp(Arbitrary::arbitrary(g), 0).into()),
-            hostname: gen_str::<G, HostNameString>(g),
+            timestamp: Some(Utc.timestamp(secs as i64, 0).into()),
+            hostname: gen_str::<HostNameString>(g),
             appname,
             procid,
             msgid,
@@ -135,12 +143,22 @@ impl Arbitrary for Wrapper<Message<String>> {
 }
 
 impl Arbitrary for Wrapper<ProcId<String>> {
-    fn arbitrary<G: Gen>(g: &mut G) -> Wrapper<ProcId<String>> {
+    fn arbitrary(g: &mut Gen) -> Wrapper<ProcId<String>> {
         Wrapper(if Arbitrary::arbitrary(g) {
             ProcId::PID(Arbitrary::arbitrary(g))
         } else {
-            let name: ProcIdString = Arbitrary::arbitrary(g);
-            ProcId::Name(name.get_str())
+            loop {
+                let name: ProcIdString = Arbitrary::arbitrary(g);
+                let ProcIdString(inner) = &name;
+                // A `ProdIdString` is ambiguous to the parser if it's all digit
+                // characters, like "8". We have try to parse the result into an
+                // i32 and if it succeeds then this generated ProcIdString will
+                // be confused for a ProdId::PID on parsing.
+                let is_ambiguous = inner.parse::<i32>().is_ok();
+                if !is_ambiguous {
+                    break ProcId::Name(name.get_str());
+                }
+            }
         })
     }
 
@@ -160,7 +178,7 @@ impl Arbitrary for Wrapper<ProcId<String>> {
 }
 
 impl Arbitrary for Wrapper<StructuredElement<String>> {
-    fn arbitrary<G: Gen>(g: &mut G) -> Wrapper<StructuredElement<String>> {
+    fn arbitrary(g: &mut Gen) -> Wrapper<StructuredElement<String>> {
         let params: Vec<(NameString, ValueString)> = Arbitrary::arbitrary(g);
         let id: NameString = Arbitrary::arbitrary(g);
 
@@ -202,24 +220,41 @@ impl Arbitrary for Wrapper<StructuredElement<String>> {
     }
 }
 
-#[quickcheck]
-fn quickcheck_parses_generated_messages(msg: Wrapper<Message<String>>) -> quickcheck::TestResult {
-    let msg = msg.unwrap();
+fn inner_parses_generated_messages(msg: Wrapper<Message<String>>) -> TestResult {
+    let msg: Message<String> = msg.unwrap();
 
     // Display the message.
     let text = format!("{}", msg);
 
     // Parse it.
-    let parsed = parse_message(&text);
+    let parsed: Message<&str> = parse_message(&text);
     let parsed = parsed.into();
     let result = msg == parsed;
 
     if !result {
-        println!("{:#?}", msg);
-        println!("{}", text);
-        println!("{:#?}", parsed);
+        println!("msg: {:#?}\ntext: {}\nparsed: {:#?}", msg, text, parsed);
     }
+
+    assert_eq!(msg.protocol, parsed.protocol);
+    assert_eq!(msg.facility, parsed.facility);
+    assert_eq!(msg.severity, parsed.severity);
+    assert_eq!(msg.timestamp, parsed.timestamp);
+    assert_eq!(msg.hostname, parsed.hostname);
+    assert_eq!(msg.appname, parsed.appname);
+    assert_eq!(msg.procid, parsed.procid);
+    assert_eq!(msg.msgid, parsed.msgid);
+    assert_eq!(msg.structured_data, parsed.structured_data);
+    assert_eq!(msg.msg, parsed.msg);
 
     // Do we still have the same message?
     quickcheck::TestResult::from_bool(result)
+}
+
+#[test]
+fn parses_generated_messages() {
+    QuickCheck::new()
+        .min_tests_passed(1_000)
+        .tests(2_000)
+        .max_tests(10_000)
+        .quickcheck(inner_parses_generated_messages as fn(Wrapper<Message<String>>) -> TestResult);
 }

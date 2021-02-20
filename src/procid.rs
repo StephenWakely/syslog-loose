@@ -1,6 +1,7 @@
 use std::fmt;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum ProcId<S: AsRef<str> + Ord + PartialEq + Clone> {
     PID(i32),
     Name(S),
