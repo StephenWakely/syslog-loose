@@ -1,19 +1,17 @@
 use quickcheck::{Arbitrary, Gen};
-use rand::Rng;
+use std::num::NonZeroU8;
 
 trait FilterChars {
     fn valid(c: char) -> bool;
 }
 
-fn gen_string<G, F>(g: &mut G, valid_char: F) -> String
+fn gen_string<F>(g: &mut Gen, valid_char: F) -> String
 where
-    G: Gen,
     F: Fn(char) -> bool,
 {
-    let size = {
-        let s = g.size();
-        g.gen_range(1, s)
-    };
+    // We generate an arbitrary `u16` and then pad it out to usize to avoid
+    // quickcheck trying to make truly huge allocations.
+    let size = NonZeroU8::arbitrary(g).get() as usize;
 
     let mut s = String::with_capacity(size);
     let mut c = 0;
@@ -47,7 +45,7 @@ macro_rules! arbitrary_string {
         }
 
         impl Arbitrary for $name {
-            fn arbitrary<G: Gen>(g: &mut G) -> $name {
+            fn arbitrary(g: &mut Gen) -> $name {
                 let s = gen_string(g, $filter);
                 $name(s)
             }

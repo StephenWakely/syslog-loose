@@ -87,10 +87,10 @@ where
                 severity: pri.1,
                 timestamp: Some(timestamp),
                 hostname: host,
-                appname: appname,
+                appname,
                 procid: pid.map(|p| p.into()),
                 msgid: None,
-                structured_data: structured_data.unwrap_or(vec![]),
+                structured_data: structured_data.unwrap_or_default(),
                 msg,
             }
         },

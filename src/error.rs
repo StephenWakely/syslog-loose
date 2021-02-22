@@ -1,4 +1,3 @@
-use nom;
 use std::{error, fmt};
 
 /// Wrap nom errors with our own

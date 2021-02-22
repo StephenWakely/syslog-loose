@@ -21,7 +21,7 @@ fn optional(input: &str, has_colons: bool) -> IResult<&str, Option<&str>> {
         // if this will be an issue.
         take_while1(|c: char| !c.is_whitespace() && (has_colons || c != ':')),
         |value: &str| {
-            if value == "-" || value == "" {
+            if value == "-" || value.is_empty() {
                 None
             } else {
                 Some(value)

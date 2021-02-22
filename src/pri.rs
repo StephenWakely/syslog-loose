@@ -6,6 +6,7 @@ use nom::{bytes::complete::tag, combinator::map, combinator::opt, sequence::deli
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Ord, PartialOrd)]
 #[allow(non_camel_case_types)]
+#[allow(clippy::upper_case_acronyms)]
 /// Syslog facilities. Taken From RFC 5424, but I've heard that some platforms mix these around.
 /// Names are from Linux.
 pub enum SyslogFacility {
@@ -103,6 +104,7 @@ impl SyslogFacility {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[allow(non_camel_case_types)]
+#[allow(clippy::upper_case_acronyms)]
 /// Syslog Severities from RFC 5424.
 pub enum SyslogSeverity {
     SEV_EMERG = 0,
@@ -170,12 +172,8 @@ pub(crate) fn compose_pri(facility: SyslogFacility, severity: SyslogSeverity) ->
 // This number contains both the facility and the severity.
 pub(crate) fn pri(input: &str) -> IResult<&str, (Option<SyslogFacility>, Option<SyslogSeverity>)> {
     map(
-        opt(delimited(
-            tag("<"),
-            map(digits, |pri| decompose_pri(pri)),
-            tag(">"),
-        )),
-        |pri| pri.unwrap_or_else(|| (None, None)),
+        opt(delimited(tag("<"), map(digits, decompose_pri), tag(">"))),
+        |pri| pri.unwrap_or((None, None)),
     )(input)
 }
 

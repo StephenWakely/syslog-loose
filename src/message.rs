@@ -5,6 +5,7 @@ use chrono::prelude::*;
 use std::fmt;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum Protocol {
     RFC3164,
     RFC5424(u32),
@@ -39,7 +40,9 @@ impl<S: AsRef<str> + Ord + PartialEq + Clone> fmt::Display for Message<S> {
                 Protocol::RFC3164 => "".to_string(),
                 Protocol::RFC5424(version) => version.to_string(),
             },
-            self.timestamp.unwrap_or(Utc::now().into()).to_rfc3339(),
+            self.timestamp
+                .unwrap_or_else(|| Utc::now().into())
+                .to_rfc3339(),
             self.hostname.as_ref().map(|s| s.as_ref()).unwrap_or(&empty)
         )?;
 
@@ -70,7 +73,7 @@ impl<S: AsRef<str> + Ord + PartialEq + Clone> fmt::Display for Message<S> {
             )?;
         }
 
-        if self.structured_data.len() == 0 {
+        if self.structured_data.is_empty() {
             if let Protocol::RFC5424(_) = self.protocol {
                 write!(f, "- ")?;
             }

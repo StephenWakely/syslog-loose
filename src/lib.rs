@@ -1,3 +1,5 @@
+#![deny(clippy::all)]
+#![deny(clippy::cargo)]
 extern crate nom;
 
 mod error;
