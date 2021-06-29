@@ -85,22 +85,38 @@ fn param(input: &str) -> IResult<&str, (&str, &str)> {
 
 /// Parse a single structured data record.
 /// [exampleSDID@32473 iut="3" eventSource="Application" eventID="1011"]
+fn structured_datum_strict(input: &str) -> IResult<&str, Option<StructuredElement<&str>>> {
+    delimited(
+        tag("["),
+        map(
+            tuple((
+                take_till1(|c: char| c.is_whitespace() || c == ']' || c == '='),
+                space0,
+                separated_list0(tag(" "), param),
+            )),
+            |(id, _, params)| Some(StructuredElement { id, params }),
+        ),
+        tag("]"),
+    )(input)
+}
+
+/// Parse a single structured data record.
+/// [exampleSDID@32473 iut="3" eventSource="Application" eventID="1011"]
 fn structured_datum(input: &str) -> IResult<&str, Option<StructuredElement<&str>>> {
     alt((
-        delimited(
-            tag("["),
-            map(
-                tuple((
-                    take_till1(|c: char| c.is_whitespace() || c == ']' || c == '='),
-                    space0,
-                    separated_list0(tag(" "), param),
-                )),
-                |(id, _, params)| Some(StructuredElement { id, params }),
-            ),
-            tag("]"),
-        ),
+        structured_datum_strict,
         // If the element fails to parse, just parse it and return None.
         delimited(tag("["), map(take_until("]"), |_| None), tag("]")),
+    ))(input)
+}
+
+/// Parse multiple structured data elements.
+pub(crate) fn structured_data_strict(input: &str) -> IResult<&str, Vec<StructuredElement<&str>>> {
+    alt((
+        map(tag("-"), |_| vec![]),
+        map(many1(structured_datum_strict), |items| {
+            items.iter().filter_map(|item| item.clone()).collect()
+        }),
     ))(input)
 }
 
