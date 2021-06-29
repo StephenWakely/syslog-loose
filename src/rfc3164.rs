@@ -3,7 +3,7 @@ use crate::{
     message::{Message, Protocol},
     parsers::{hostname, tagname},
     pri::pri,
-    structured_data::structured_data_strict,
+    structured_data::structured_data_optional,
     timestamp::{timestamp_3164, IncompleteDate},
 };
 use chrono::prelude::*;
@@ -74,7 +74,7 @@ where
             opt(space0),
             opt(tag(":")),
             opt(space0),
-            opt(structured_data_strict),
+            opt(structured_data_optional(false)),
             opt(space0),
             rest,
         )),
