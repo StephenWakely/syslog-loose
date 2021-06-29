@@ -1,0 +1,13 @@
+name: Testing
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: run unit tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
