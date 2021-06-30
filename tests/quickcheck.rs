@@ -220,6 +220,13 @@ impl Arbitrary for Wrapper<StructuredElement<String>> {
     }
 }
 
+// assume that Some("-") is equivalent to None
+fn is_same_hostname(expected: Option<String>, parsed: Option<String>) -> bool {
+    expected == parsed
+        || (expected == Some("-".into()) && parsed.is_none())
+        || (expected.is_none() && parsed == Some("-".into()))
+}
+
 fn inner_parses_generated_messages(msg: Wrapper<Message<String>>) -> TestResult {
     let msg: Message<String> = msg.unwrap();
 
@@ -239,7 +246,7 @@ fn inner_parses_generated_messages(msg: Wrapper<Message<String>>) -> TestResult 
     assert_eq!(msg.facility, parsed.facility);
     assert_eq!(msg.severity, parsed.severity);
     assert_eq!(msg.timestamp, parsed.timestamp);
-    assert_eq!(msg.hostname, parsed.hostname);
+    assert!(is_same_hostname(msg.hostname, parsed.hostname));
     assert_eq!(msg.appname, parsed.appname);
     assert_eq!(msg.procid, parsed.procid);
     assert_eq!(msg.msgid, parsed.msgid);
