@@ -85,33 +85,58 @@ fn param(input: &str) -> IResult<&str, (&str, &str)> {
 
 /// Parse a single structured data record.
 /// [exampleSDID@32473 iut="3" eventSource="Application" eventID="1011"]
-fn structured_datum(input: &str) -> IResult<&str, Option<StructuredElement<&str>>> {
-    alt((
-        delimited(
-            tag("["),
-            map(
-                tuple((
-                    take_till1(|c: char| c.is_whitespace() || c == ']' || c == '='),
-                    space0,
-                    separated_list0(tag(" "), param),
-                )),
-                |(id, _, params)| Some(StructuredElement { id, params }),
-            ),
-            tag("]"),
+fn structured_datum_strict(input: &str) -> IResult<&str, Option<StructuredElement<&str>>> {
+    delimited(
+        tag("["),
+        map(
+            tuple((
+                take_till1(|c: char| c.is_whitespace() || c == ']' || c == '='),
+                space0,
+                separated_list0(tag(" "), param),
+            )),
+            |(id, _, params)| Some(StructuredElement { id, params }),
         ),
+        tag("]"),
+    )(input)
+}
+
+/// Parse a single structured data record allowing anything between brackets.
+fn structured_datum_permissive(input: &str) -> IResult<&str, Option<StructuredElement<&str>>> {
+    alt((
+        structured_datum_strict,
         // If the element fails to parse, just parse it and return None.
         delimited(tag("["), map(take_until("]"), |_| None), tag("]")),
     ))(input)
 }
 
+/// Parse a single structured data record.
+fn structured_datum(
+    allow_failure: bool,
+) -> impl FnMut(&str) -> IResult<&str, Option<StructuredElement<&str>>> {
+    if allow_failure {
+        structured_datum_permissive
+    } else {
+        structured_datum_strict
+    }
+}
+
 /// Parse multiple structured data elements.
 pub(crate) fn structured_data(input: &str) -> IResult<&str, Vec<StructuredElement<&str>>> {
-    alt((
-        map(tag("-"), |_| vec![]),
-        map(many1(structured_datum), |items| {
-            items.iter().filter_map(|item| item.clone()).collect()
-        }),
-    ))(input)
+    structured_data_optional(true)(input)
+}
+
+/// Parse multiple structured data elements.
+pub(crate) fn structured_data_optional(
+    allow_failure: bool,
+) -> impl FnMut(&str) -> IResult<&str, Vec<StructuredElement<&str>>> {
+    move |input| {
+        alt((
+            map(tag("-"), |_| vec![]),
+            map(many1(structured_datum(allow_failure)), |items| {
+                items.iter().filter_map(|item| item.clone()).collect()
+            }),
+        ))(input)
+    }
 }
 
 #[test]
@@ -125,7 +150,7 @@ fn parse_param_value() {
 #[test]
 fn parse_structured_data() {
     assert_eq!(
-        structured_datum(
+        structured_datum_strict(
             "[exampleSDID@32473 iut=\"3\" eventSource=\"Application\" eventID=\"1011\"]"
         )
         .unwrap(),
@@ -146,7 +171,7 @@ fn parse_structured_data() {
 #[test]
 fn parse_structured_data_no_values() {
     assert_eq!(
-        structured_datum("[exampleSDID@32473]").unwrap(),
+        structured_datum(false)("[exampleSDID@32473]").unwrap(),
         (
             "",
             Some(StructuredElement {
@@ -160,7 +185,7 @@ fn parse_structured_data_no_values() {
 #[test]
 fn parse_structured_data_with_space() {
     assert_eq!(
-        structured_datum(
+        structured_datum(false)(
             "[exampleSDID@32473 iut=\"3\" eventSource= \"Application\" eventID=\"1011\"]"
         )
         .unwrap(),
@@ -180,7 +205,10 @@ fn parse_structured_data_with_space() {
 
 #[test]
 fn parse_invalid_structured_data() {
-    assert_eq!(structured_datum("[exampleSDID@32473 iut=]"), Ok(("", None)));
+    assert_eq!(
+        structured_datum(true)("[exampleSDID@32473 iut=]"),
+        Ok(("", None))
+    );
 }
 
 #[cfg(test)]
@@ -191,7 +219,7 @@ mod tests {
     fn parse_multiple_structured_data() {
         assert_eq!(
             structured_data(
-            "[exampleSDID@32473 iut=\"3\" eventSource= \"Application\" eventID=\"1011\"][sproink onk=\"ponk\" zork=\"shnork\"]"
+                "[exampleSDID@32473 iut=\"3\" eventSource= \"Application\" eventID=\"1011\"][sproink onk=\"ponk\" zork=\"shnork\"]"
             ) .unwrap(),
             (
                 "",
@@ -214,6 +242,20 @@ mod tests {
                 ]
             )
         );
+    }
+
+    #[test]
+    fn parse_structured_data_keep_invalid_elements() {
+        assert_eq!(
+            structured_data_optional(false)("[abc][id aa=]").unwrap(),
+            (
+                "[id aa=]",
+                vec![StructuredElement {
+                    id: "abc",
+                    params: vec![],
+                },]
+            )
+        )
     }
 
     #[test]

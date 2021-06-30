@@ -3,7 +3,7 @@ use crate::{
     message::{Message, Protocol},
     parsers::{hostname, tagname},
     pri::pri,
-    structured_data::structured_data,
+    structured_data::structured_data_optional,
     timestamp::{timestamp_3164, IncompleteDate},
 };
 use chrono::prelude::*;
@@ -74,7 +74,7 @@ where
             opt(space0),
             opt(tag(":")),
             opt(space0),
-            opt(structured_data),
+            opt(structured_data_optional(false)),
             opt(space0),
             rest,
         )),
@@ -289,6 +289,33 @@ mod tests {
                     msgid: None,
                     structured_data: vec![],
                     msg: "a message",
+                }
+            )
+        );
+    }
+
+    #[test]
+    fn parse_3164_3339_datetime_in_message() {
+        assert_eq!(
+            parse(
+                "<131>Jun 8 11:54:08 master apache_error [Tue Jun 08 11:54:08.929301 2021] [php7:emerg] [pid 1374899] [client 95.223.77.60:41888] rest of message",
+                |_| { 2021 },
+                Some(Utc.fix())
+            )
+            .unwrap(),
+            (
+                "",
+                Message {
+                    protocol: Protocol::RFC3164,
+                    facility: Some(SyslogFacility::LOG_LOCAL0),
+                    severity: Some(SyslogSeverity::SEV_ERR),
+                    timestamp: Some(FixedOffset::west(0).ymd(2021, 6, 8).and_hms(11, 54, 8)),
+                    hostname: Some("master"),
+                    appname: Some("apache_error"),
+                    procid: None,
+                    msgid: None,
+                    structured_data: vec![],
+                    msg: "[Tue Jun 08 11:54:08.929301 2021] [php7:emerg] [pid 1374899] [client 95.223.77.60:41888] rest of message",
                 }
             )
         );
