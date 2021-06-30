@@ -198,7 +198,7 @@ fn parse_3164_invalid_structured_data() {
             msgid: None,
             protocol: Protocol::RFC3164,
             structured_data: vec![],
-            msg: "start",
+            msg: "[software=\"rsyslogd\" swVersion=\"8.32.0\" x-pid=\"20506\" x-info=\"http://www.rsyslog.com\"] start",
         }
     );
 }

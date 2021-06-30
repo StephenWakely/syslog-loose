@@ -300,7 +300,7 @@ mod tests {
             parse(
                 "<131>Jun 8 11:54:08 master apache_error [Tue Jun 08 11:54:08.929301 2021] [php7:emerg] [pid 1374899] [client 95.223.77.60:41888] rest of message",
                 |_| { 2021 },
-                None
+                Some(Utc.fix())
             )
             .unwrap(),
             (
@@ -309,7 +309,7 @@ mod tests {
                     protocol: Protocol::RFC3164,
                     facility: Some(SyslogFacility::LOG_LOCAL0),
                     severity: Some(SyslogSeverity::SEV_ERR),
-                    timestamp: Some(FixedOffset::west(0).ymd(2021, 6, 8).and_hms(9, 54, 8)),
+                    timestamp: Some(FixedOffset::west(0).ymd(2021, 6, 8).and_hms(11, 54, 8)),
                     hostname: Some("master"),
                     appname: Some("apache_error"),
                     procid: None,
