@@ -1,7 +1,8 @@
 use chrono::prelude::*;
 use syslog_loose::{
-    parse_message, parse_message_with_year, parse_message_with_year_exact, IncompleteDate, Message,
-    ProcId, Protocol, StructuredElement, SyslogFacility, SyslogSeverity,
+    parse_message, parse_message_with_year, parse_message_with_year_exact,
+    parse_message_with_year_exact_tz, IncompleteDate, Message, ProcId, Protocol, StructuredElement,
+    SyslogFacility, SyslogSeverity,
 };
 
 fn with_year((month, _date, _hour, _min, _sec): IncompleteDate) -> i32 {
@@ -689,5 +690,26 @@ fn parse_exact_error() {
     assert_eq!(
         parse_message_with_year_exact(&raw, with_year),
         Err("unable to parse input as valid syslog message".to_string())
+    );
+}
+
+#[test]
+fn parse_exact_with_tz() {
+    let raw = r#"<13>Feb 13 20:07:26 74794bfb6795 root[8539]: i am foobar"#;
+    let tz = chrono::FixedOffset::east(5 * 3600);
+    assert_eq!(
+        parse_message_with_year_exact_tz(&raw, with_year, Some(tz)).unwrap(),
+        Message {
+            facility: Some(SyslogFacility::LOG_USER),
+            severity: Some(SyslogSeverity::SEV_NOTICE),
+            timestamp: Some(tz.ymd(2020, 02, 13).and_hms_micro(20, 7, 26, 0)),
+            hostname: Some("74794bfb6795"),
+            appname: Some("root"),
+            procid: Some(ProcId::PID(8539)),
+            msgid: None,
+            protocol: Protocol::RFC3164,
+            structured_data: vec![],
+            msg: "i am foobar",
+        }
     );
 }
