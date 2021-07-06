@@ -110,7 +110,30 @@ pub fn parse_message_with_year_exact<F>(input: &str, get_year: F) -> Result<Mess
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
 {
-    parse(input, get_year, None)
+    parse_message_with_year_exact_tz(input, get_year, None)
+}
+
+///
+/// Pase the message exactly. If it can't parse the message an Error is returned.
+/// Note, since it is hard to locate exactly what is causing the error due to the parser trying
+/// so many different combinations, a simple hardcoded string is returned as the error message.
+///
+/// # Arguments
+///
+/// * input - the string containing the message.
+/// * tz - a default timezone to use if the parsed timestamp does not specify one
+/// * get_year - a function that is called if the parsed message contains a date with no year.
+///              the function takes a (month, date, hour, minute, second) tuple and should return the year to use.
+///
+pub fn parse_message_with_year_exact_tz<F>(
+    input: &str,
+    get_year: F,
+    tz: Option<FixedOffset>,
+) -> Result<Message<&str>, String>
+where
+    F: FnOnce(IncompleteDate) -> i32 + Copy,
+{
+    parse(input, get_year, tz)
         .map(|(_, result)| result)
         .map_err(|_| "unable to parse input as valid syslog message".to_string())
 }
