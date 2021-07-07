@@ -16,6 +16,7 @@ nom = "6"
 chrono = "0.4"
 
 [dev-dependencies]
+chrono-tz = "0.5"
 criterion = "0.3.4"
 criterion-cycles-per-byte = "0.1.2"
 quickcheck = "1.0.3"

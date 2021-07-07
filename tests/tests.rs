@@ -36,6 +36,32 @@ fn parse_nginx() {
 }
 
 #[test]
+fn parse_chrono_tz() {
+    let msg = "<46>Jan  5 15:33:03 plertrood-ThinkPad-X220 rsyslogd: start";
+
+    assert_eq!(
+        parse_message_with_year_exact_tz(msg, with_year, Some(chrono_tz::Europe::Paris)).unwrap(),
+        Message {
+            facility: Some(SyslogFacility::LOG_SYSLOG),
+            severity: Some(SyslogSeverity::SEV_INFO),
+            timestamp: Some(
+                FixedOffset::east(3600)
+                    .ymd(2020, 1, 5)
+                    .and_hms_milli(15, 33, 3, 0)
+                    .into()
+            ),
+            hostname: Some("plertrood-ThinkPad-X220"),
+            appname: Some("rsyslogd"),
+            procid: None,
+            msgid: None,
+            protocol: Protocol::RFC3164,
+            structured_data: vec![],
+            msg: "start",
+        }
+    );
+}
+
+#[test]
 fn parse_rsyslog() {
     // rsyslog sends messages in 3164 with some structured data.
     let msg = "<46>Jan  5 15:33:03 plertrood-ThinkPad-X220 rsyslogd:  [origin software=\"rsyslogd\" swVersion=\"8.32.0\" x-pid=\"20506\" x-info=\"http://www.rsyslog.com\"] start";

@@ -88,12 +88,15 @@ fn make_timestamp<F, Tz: TimeZone>(
 ) -> DateTime<FixedOffset>
 where
     F: FnOnce(IncompleteDate) -> i32,
-    DateTime<FixedOffset>: From<DateTime<Tz>>,
 {
     let year = get_year(idate);
     let (mon, d, h, min, s) = idate;
     match tz {
-        Some(offset) => offset.ymd(year, mon, d).and_hms(h, min, s).into(),
+        Some(offset) => {
+            let datetime = offset.ymd(year, mon, d).and_hms(h, min, s);
+            let fix_offset = datetime.offset().fix();
+            datetime.with_timezone(&fix_offset)
+        }
         None => Local.ymd(year, mon, d).and_hms(h, min, s).into(),
     }
 }
@@ -115,7 +118,6 @@ pub(crate) fn timestamp_3164<F, Tz: TimeZone + Copy>(
 ) -> impl Fn(&str) -> IResult<&str, DateTime<FixedOffset>>
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
-    DateTime<FixedOffset>: From<DateTime<Tz>>,
 {
     move |input| {
         alt((
@@ -124,8 +126,8 @@ where
             }),
             map(timestamp_3164_with_year, |naive_date| match tz {
                 Some(tz) => {
-                    let offset = tz.offset_from_utc_datetime(&naive_date);
-                    DateTime::from_utc(naive_date, offset).into()
+                    let offset = tz.offset_from_utc_datetime(&naive_date).fix();
+                    DateTime::<FixedOffset>::from_utc(naive_date, offset).into()
                 }
                 None => match Local.from_local_datetime(&naive_date).earliest() {
                     Some(timestamp) => timestamp.into(),

@@ -67,7 +67,6 @@ pub fn parse<F, Tz: TimeZone + Copy>(
 ) -> IResult<&str, Message<&str>>
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
-    DateTime<FixedOffset>: From<DateTime<Tz>>,
 {
     map(
         tuple((

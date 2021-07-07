@@ -29,7 +29,6 @@ fn parse<F, Tz: TimeZone + Copy>(
 ) -> IResult<&str, Message<&str>>
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
-    DateTime<FixedOffset>: From<DateTime<Tz>>,
 {
     alt((rfc5424::parse, |input| rfc3164::parse(input, get_year, tz)))(input.trim())
 }
@@ -140,7 +139,6 @@ pub fn parse_message_with_year_exact_tz<F, Tz: TimeZone + Copy>(
 ) -> Result<Message<&str>, String>
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
-    DateTime<FixedOffset>: From<DateTime<Tz>>,
 {
     parse(input, get_year, tz)
         .map(|(_, result)| result)
