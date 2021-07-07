@@ -60,9 +60,14 @@ fn resolve_host_and_tag<'a>(
 }
 
 /// Parses the message as per RFC3164.
-pub fn parse<F>(input: &str, get_year: F, tz: Option<FixedOffset>) -> IResult<&str, Message<&str>>
+pub fn parse<F, Tz: TimeZone + Copy>(
+    input: &str,
+    get_year: F,
+    tz: Option<Tz>,
+) -> IResult<&str, Message<&str>>
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
+    DateTime<FixedOffset>: From<DateTime<Tz>>,
 {
     map(
         tuple((
@@ -172,7 +177,8 @@ mod tests {
     #[test]
     fn parse_3164_timestamp_uppercase() {
         assert_eq!(
-            parse("<34>OCT 11 22:14:15 : a message", |_| 2019, Some(Utc.fix())).unwrap(),
+            parse::<_, FixedOffset>("<34>OCT 11 22:14:15 : a message", |_| 2019, Some(Utc.fix()))
+                .unwrap(),
             (
                 "",
                 Message {
@@ -194,7 +200,7 @@ mod tests {
     #[test]
     fn parse_3164_timestamp_host() {
         assert_eq!(
-            parse(
+            parse::<_, FixedOffset>(
                 "<34>Oct 11 22:14:15 mymachine: a message",
                 |_| 2019,
                 Some(Utc.fix())
@@ -221,7 +227,7 @@ mod tests {
     #[test]
     fn parse_3164_host_with_space() {
         assert_eq!(
-            parse("<54> 1970-01-01T00:01:31+00:00 host :", |_| 2019, None).unwrap(),
+            parse::<_, Utc>("<54> 1970-01-01T00:01:31+00:00 host :", |_| 2019, None).unwrap(),
             (
                 "",
                 Message {
@@ -243,7 +249,7 @@ mod tests {
     #[test]
     fn parse_3164_timestamp_host_appname_pid() {
         assert_eq!(
-            parse(
+            parse::<_, FixedOffset>(
                 "<34>Oct 11 22:14:15 mymachine app[323]: a message",
                 |_| { 2019 },
                 Some(Utc.fix())
@@ -270,7 +276,7 @@ mod tests {
     #[test]
     fn parse_3164_3339_timestamp_host_appname_pid() {
         assert_eq!(
-            parse(
+            parse::<_, Local>(
                 "<34>2020-10-11T22:14:15.00Z mymachine app[323]: a message",
                 |_| { 2019 },
                 None
@@ -297,7 +303,7 @@ mod tests {
     #[test]
     fn parse_3164_3339_datetime_in_message() {
         assert_eq!(
-            parse(
+            parse::<_, FixedOffset>(
                 "<131>Jun 8 11:54:08 master apache_error [Tue Jun 08 11:54:08.929301 2021] [php7:emerg] [pid 1374899] [client 95.223.77.60:41888] rest of message",
                 |_| { 2021 },
                 Some(Utc.fix())
