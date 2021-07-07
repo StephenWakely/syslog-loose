@@ -22,9 +22,14 @@ pub use structured_data::StructuredElement;
 pub use timestamp::IncompleteDate;
 
 /// Attempt to parse 5424 first, if this fails move on to 3164.
-fn parse<F>(input: &str, get_year: F, tz: Option<FixedOffset>) -> IResult<&str, Message<&str>>
+fn parse<F, Tz: TimeZone + Copy>(
+    input: &str,
+    get_year: F,
+    tz: Option<Tz>,
+) -> IResult<&str, Message<&str>>
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
+    DateTime<FixedOffset>: From<DateTime<Tz>>,
 {
     alt((rfc5424::parse, |input| rfc3164::parse(input, get_year, tz)))(input.trim())
 }
@@ -39,13 +44,14 @@ where
 /// * get_year - a function that is called if the parsed message contains a date with no year.
 ///              the function takes a (month, date, hour, minute, second) tuple and should return the year to use.
 ///
-pub fn parse_message_with_year_tz<F>(
+pub fn parse_message_with_year_tz<F, Tz: TimeZone + Copy>(
     input: &str,
     get_year: F,
-    tz: Option<FixedOffset>,
+    tz: Option<Tz>,
 ) -> Message<&str>
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
+    DateTime<FixedOffset>: From<DateTime<Tz>>,
 {
     parse(input, get_year, tz)
         .map(|(_, result)| result)
@@ -80,7 +86,7 @@ pub fn parse_message_with_year<F>(input: &str, get_year: F) -> Message<&str>
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
 {
-    parse_message_with_year_tz(input, get_year, None)
+    parse_message_with_year_tz::<_, Local>(input, get_year, None)
 }
 
 /// Parses the message.
@@ -110,7 +116,9 @@ pub fn parse_message_with_year_exact<F>(input: &str, get_year: F) -> Result<Mess
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
 {
-    parse_message_with_year_exact_tz(input, get_year, None)
+    parse::<_, Local>(input, get_year, None)
+        .map(|(_, result)| result)
+        .map_err(|_| "unable to parse input as valid syslog message".to_string())
 }
 
 ///
@@ -125,13 +133,14 @@ where
 /// * get_year - a function that is called if the parsed message contains a date with no year.
 ///              the function takes a (month, date, hour, minute, second) tuple and should return the year to use.
 ///
-pub fn parse_message_with_year_exact_tz<F>(
+pub fn parse_message_with_year_exact_tz<F, Tz: TimeZone + Copy>(
     input: &str,
     get_year: F,
-    tz: Option<FixedOffset>,
+    tz: Option<Tz>,
 ) -> Result<Message<&str>, String>
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
+    DateTime<FixedOffset>: From<DateTime<Tz>>,
 {
     parse(input, get_year, tz)
         .map(|(_, result)| result)

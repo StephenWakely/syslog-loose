@@ -81,18 +81,19 @@ fn timestamp_3164_with_year(input: &str) -> IResult<&str, NaiveDateTime> {
 
 /// Makes a timestamp given all the fields of the date less the year
 /// and a function to resolve the year.
-fn make_timestamp<F>(
+fn make_timestamp<F, Tz: TimeZone>(
     idate: IncompleteDate,
     get_year: F,
-    tz: Option<FixedOffset>,
+    tz: Option<Tz>,
 ) -> DateTime<FixedOffset>
 where
     F: FnOnce(IncompleteDate) -> i32,
+    DateTime<FixedOffset>: From<DateTime<Tz>>,
 {
     let year = get_year(idate);
     let (mon, d, h, min, s) = idate;
     match tz {
-        Some(offset) => offset.ymd(year, mon, d).and_hms(h, min, s),
+        Some(offset) => offset.ymd(year, mon, d).and_hms(h, min, s).into(),
         None => Local.ymd(year, mon, d).and_hms(h, min, s).into(),
     }
 }
@@ -108,20 +109,24 @@ where
 /// * tz - An optional timezone.
 ///        If None is specified and the parsed date doesn't specify a timezone the date is parsed in time local time.
 ///
-pub(crate) fn timestamp_3164<F>(
+pub(crate) fn timestamp_3164<F, Tz: TimeZone + Copy>(
     get_year: F,
-    tz: Option<FixedOffset>,
+    tz: Option<Tz>,
 ) -> impl Fn(&str) -> IResult<&str, DateTime<FixedOffset>>
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
+    DateTime<FixedOffset>: From<DateTime<Tz>>,
 {
     move |input| {
         alt((
             map(timestamp_3164_no_year, |ts| {
-                make_timestamp(ts, get_year, tz)
+                make_timestamp::<_, Tz>(ts, get_year, tz)
             }),
             map(timestamp_3164_with_year, |naive_date| match tz {
-                Some(tz) => DateTime::from_utc(naive_date, tz),
+                Some(tz) => {
+                    let offset = tz.offset_from_utc_datetime(&naive_date);
+                    DateTime::from_utc(naive_date, offset).into()
+                }
                 None => match Local.from_local_datetime(&naive_date).earliest() {
                     Some(timestamp) => timestamp.into(),
                     None => Local.from_utc_datetime(&naive_date).into(),
@@ -198,7 +203,7 @@ fn parse_timestamp_no_year_3164_local_time() {
         .offset_from_local_datetime(&NaiveDate::from_ymd(2019, 08, 04).and_hms(16, 49, 07))
         .unwrap();
     assert_eq!(
-        timestamp_3164(|_| 2019, None)("Aug 4 16:49:07 ",).unwrap(),
+        timestamp_3164::<_, Local>(|_| 2019, None)("Aug 4 16:49:07 ",).unwrap(),
         (" ", offset.ymd(2019, 8, 4).and_hms(16, 49, 07))
     );
 }
@@ -209,7 +214,7 @@ fn parse_timestamp_with_year_3164_local_time() {
         .offset_from_local_datetime(&NaiveDate::from_ymd(2020, 08, 04).and_hms(16, 49, 07))
         .unwrap();
     assert_eq!(
-        timestamp_3164(|_| 2019, None)("Aug 4 2020 16:49:07 ",).unwrap(),
+        timestamp_3164::<_, Local>(|_| 2019, None)("Aug 4 2020 16:49:07 ",).unwrap(),
         (" ", offset.ymd(2020, 8, 4).and_hms(16, 49, 07))
     );
 }
