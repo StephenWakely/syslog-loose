@@ -127,7 +127,7 @@ where
             map(timestamp_3164_with_year, |naive_date| match tz {
                 Some(tz) => {
                     let offset = tz.offset_from_utc_datetime(&naive_date).fix();
-                    DateTime::<FixedOffset>::from_utc(naive_date, offset).into()
+                    DateTime::<FixedOffset>::from_utc(naive_date, offset)
                 }
                 None => match Local.from_local_datetime(&naive_date).earliest() {
                     Some(timestamp) => timestamp.into(),
