@@ -12,7 +12,7 @@ readme = "README.md"
 edition = "2018"
 
 [dependencies]
-nom = "6"
+nom = "7"
 chrono = "0.4"
 
 [dev-dependencies]
