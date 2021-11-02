@@ -36,7 +36,7 @@ impl<S: AsRef<str> + Ord + Clone> PartialEq for StructuredElement<S> {
         let mut params1 = self.params.clone();
         params1.sort();
 
-        let mut params2 = self.params.clone();
+        let mut params2 = other.params.clone();
         params2.sort();
 
         params1
