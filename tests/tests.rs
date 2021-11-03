@@ -629,7 +629,7 @@ fn rsyslog_omfwd_tcp_forward_format() {
                 params: vec![
                     ("software", "rsyslogd"),
                     ("swVersion", "8.24.0"),
-                    ("x-pid", "8979"),
+                    ("x-pid", "9043"),
                     ("x-info", "http://www.rsyslog.com")
                 ]
             }],
