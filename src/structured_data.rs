@@ -15,6 +15,25 @@ pub struct StructuredElement<S: AsRef<str> + Ord + Clone> {
     pub params: Vec<(S, S)>,
 }
 
+pub struct ParamsIter<'a, S: AsRef<str>> {
+    pos: usize,
+    params: &'a Vec<(S, S)>,
+}
+
+impl<S: AsRef<str> + Ord + Clone> StructuredElement<S> {
+    /// Since we parse the message without any additional allocations, we can't parse out the
+    /// escapes during parsing as that would require allocating an extra string to store the
+    /// stripped version.
+    /// So params returns an iterator that will allocate and return a string with the escapes
+    /// stripped out.
+    pub fn params<'a>(&'a self) -> ParamsIter<'a, S> {
+        ParamsIter {
+            pos: 0,
+            params: &self.params,
+        }
+    }
+}
+
 impl<S: AsRef<str> + Ord + Clone> fmt::Display for StructuredElement<S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[{}", self.id.as_ref())?;
@@ -61,6 +80,33 @@ impl From<StructuredElement<&str>> for StructuredElement<String> {
     }
 }
 
+impl<'a, S: AsRef<str> + Ord + Clone> Iterator for ParamsIter<'a, S> {
+    type Item = (&'a S, String);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pos >= self.params.len() {
+            None
+        } else {
+            let (key, value) = &self.params[self.pos];
+            self.pos += 1;
+            let mut trimmed = String::with_capacity(value.as_ref().len());
+            let mut escaped = false;
+            for c in value.as_ref().chars() {
+                if c == '\\' && !escaped {
+                    escaped = true;
+                } else if c == 'n' && escaped {
+                    escaped = false;
+                    trimmed.push('\n');
+                } else {
+                    escaped = false;
+                    trimmed.push(c);
+                }
+            }
+            Some((key, trimmed))
+        }
+    }
+}
+
 /// Parse the param value - a string delimited by '"' - '\' escapes \ and "
 fn param_value(input: &str) -> IResult<&str, &str> {
     delimited(
@@ -68,7 +114,7 @@ fn param_value(input: &str) -> IResult<&str, &str> {
         escaped(
             take_while1(|c: char| c != '\\' && c != '"'),
             '\\',
-            one_of("\"n\\"),
+            one_of(r#""n\]"#),
         ),
         tag("\""),
     )(input)
@@ -290,5 +336,29 @@ mod tests {
                 ]
             )
         )
+    }
+
+    #[test]
+    fn params_remove_escapes() {
+        let data = structured_data(
+            r#"[id aa="hullo \"there\"" bb="let's \\\\do this\\\\" cc="hello [bye\]" dd="hello\nbye"]"#,
+        )
+        .unwrap();
+        let params = data.1[0].params().collect::<Vec<_>>();
+
+        assert_eq!(
+            params,
+            vec![
+                (&"aa", r#"hullo "there""#.to_string()),
+                (&"bb", r#"let's \\do this\\"#.to_string(),),
+                (&"cc", r#"hello [bye]"#.to_string(),),
+                (
+                    &"dd",
+                    r#"hello
+bye"#
+                        .to_string(),
+                )
+            ]
+        );
     }
 }
