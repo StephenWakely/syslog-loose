@@ -109,15 +109,20 @@ impl<'a, S: AsRef<str> + Ord + Clone> Iterator for ParamsIter<'a, S> {
 
 /// Parse the param value - a string delimited by '"' - '\' escapes \ and "
 fn param_value(input: &str) -> IResult<&str, &str> {
-    delimited(
-        tag("\""),
-        escaped(
-            take_while1(|c: char| c != '\\' && c != '"'),
-            '\\',
-            one_of(r#""n\]"#),
+    alt((
+        // We need to handle an empty string separately since `escaped`
+        // doesn't work unless it has some input.
+        map(tag(r#""""#), |_| ""),
+        delimited(
+            tag("\""),
+            escaped(
+                take_while1(|c: char| c != '\\' && c != '"'),
+                '\\',
+                one_of(r#""n\]"#),
+            ),
+            tag("\""),
         ),
-        tag("\""),
-    )(input)
+    ))(input)
 }
 
 /// Parse a param name="value"
@@ -191,6 +196,11 @@ fn parse_param_value() {
         param_value("\"Some \\\"lovely\\\" string\"").unwrap(),
         ("", "Some \\\"lovely\\\" string")
     );
+}
+
+#[test]
+fn parse_empty_param_value() {
+    assert_eq!(param_value(r#""""#).unwrap(), ("", ""));
 }
 
 #[test]
