@@ -170,6 +170,38 @@ fn parse_5424_structured_data() {
 }
 
 #[test]
+fn parse_5424_empty_structured_data() {
+    let msg = "<165>1 2003-10-11T22:14:15.003Z mymachine.example.com evntslog - ID47 [exampleSDID@32473 iut=\"3\" eventSource=\"\" eventID=\"1011\"] BOMAn application event log entry...";
+
+    assert_eq!(
+        parse_message(msg),
+        Message {
+            facility: Some(SyslogFacility::LOG_LOCAL4),
+            severity: Some(SyslogSeverity::SEV_NOTICE),
+            timestamp: Some(
+                FixedOffset::west(0)
+                    .ymd(2003, 10, 11)
+                    .and_hms_milli(22, 14, 15, 3)
+            ),
+            hostname: Some("mymachine.example.com"),
+            appname: Some("evntslog"),
+            procid: None,
+            msgid: Some("ID47"),
+            protocol: Protocol::RFC5424(1),
+            structured_data: vec![StructuredElement {
+                id: "exampleSDID@32473",
+                params: vec![
+                    ("iut", "3"),
+                    ("eventSource", ""),
+                    ("eventID", "1011")
+                ]
+            },],
+            msg: "BOMAn application event log entry...",
+        }
+    );
+}
+
+#[test]
 fn parse_5424_multiple_structured_data() {
     let msg = "<165>1 2003-10-11T22:14:15.003Z mymachine.example.com evntslog - ID47 [exampleSDID@32473 iut=\"3\" eventSource= \"Application\" eventID=\"1011\"][examplePriority@32473 class=\"high\"] BOMAn application event log entry...";
 
