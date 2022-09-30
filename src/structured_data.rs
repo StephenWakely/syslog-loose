@@ -26,7 +26,7 @@ impl<S: AsRef<str> + Ord + Clone> StructuredElement<S> {
     /// stripped version.
     /// So params returns an iterator that will allocate and return a string with the escapes
     /// stripped out.
-    pub fn params<'a>(&'a self) -> ParamsIter<'a, S> {
+    pub fn params(&self) -> ParamsIter<'_, S> {
         ParamsIter {
             pos: 0,
             params: &self.params,

@@ -190,11 +190,7 @@ fn parse_5424_empty_structured_data() {
             protocol: Protocol::RFC5424(1),
             structured_data: vec![StructuredElement {
                 id: "exampleSDID@32473",
-                params: vec![
-                    ("iut", "3"),
-                    ("eventSource", ""),
-                    ("eventID", "1011")
-                ]
+                params: vec![("iut", "3"), ("eventSource", ""), ("eventID", "1011")]
             },],
             msg: "BOMAn application event log entry...",
         }
@@ -770,4 +766,14 @@ fn parse_exact_with_tz() {
             msg: "i am foobar",
         }
     );
+}
+
+#[test]
+fn parse_invalid_date() {
+    fn non_leapyear((_month, _date, _hour, _min, _sec): IncompleteDate) -> i32 {
+        2019
+    }
+
+    let raw = r#"<134> Feb 29 14:07:19 myhostname sshd - - - this is my message"#;
+    assert!(parse_message_with_year_exact(&raw, non_leapyear).is_err());
 }

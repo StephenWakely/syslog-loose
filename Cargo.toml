@@ -35,3 +35,6 @@ harness = false
 
 [profile.release]
 debug = true
+
+[features]
+quickcheck = []
