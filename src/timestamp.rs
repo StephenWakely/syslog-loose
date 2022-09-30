@@ -85,19 +85,26 @@ fn make_timestamp<F, Tz: TimeZone>(
     idate: IncompleteDate,
     get_year: F,
     tz: Option<Tz>,
-) -> DateTime<FixedOffset>
+) -> Option<DateTime<FixedOffset>>
 where
     F: FnOnce(IncompleteDate) -> i32,
 {
     let year = get_year(idate);
     let (mon, d, h, min, s) = idate;
     match tz {
-        Some(offset) => {
-            let datetime = offset.ymd(year, mon, d).and_hms(h, min, s);
-            let fix_offset = datetime.offset().fix();
-            datetime.with_timezone(&fix_offset)
-        }
-        None => Local.ymd(year, mon, d).and_hms(h, min, s).into(),
+        Some(offset) => offset
+            .ymd_opt(year, mon, d)
+            .earliest()
+            .and_then(|date| date.and_hms_opt(h, min, s))
+            .map(|datetime| {
+                let fix_offset = datetime.offset().fix();
+                datetime.with_timezone(&fix_offset)
+            }),
+        None => Local
+            .ymd_opt(year, mon, d)
+            .earliest()
+            .and_then(|date| date.and_hms_opt(h, min, s))
+            .map(Into::into),
     }
 }
 
@@ -121,8 +128,8 @@ where
 {
     move |input| {
         alt((
-            map(timestamp_3164_no_year, |ts| {
-                make_timestamp::<_, Tz>(ts, get_year, tz)
+            map_res(timestamp_3164_no_year, |ts| {
+                make_timestamp::<_, Tz>(ts, get_year, tz).ok_or("invalid date")
             }),
             map(timestamp_3164_with_year, |naive_date| match tz {
                 Some(tz) => {
