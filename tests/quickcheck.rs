@@ -1,3 +1,4 @@
+#![cfg(feature = "quickcheck")]
 extern crate quickcheck;
 extern crate quickcheck_macros;
 
