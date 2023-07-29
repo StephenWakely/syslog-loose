@@ -134,7 +134,11 @@ mod tests {
                     protocol: Protocol::RFC3164,
                     facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
-                    timestamp: Some(Utc.ymd(2019, 10, 11).and_hms(22, 14, 15).into()),
+                    timestamp: Some(
+                        Utc.with_ymd_and_hms(2019, 10, 11, 22, 14, 15)
+                            .unwrap()
+                            .into()
+                    ),
                     hostname: None,
                     appname: None,
                     procid: None,
@@ -160,7 +164,11 @@ mod tests {
                 Message {
                     facility: Some(SyslogFacility::LOG_LOCAL0),
                     severity: Some(SyslogSeverity::SEV_INFO),
-                    timestamp: Some(Utc.ymd(2020, 10, 30).and_hms_milli(16, 05, 54, 0).into()),
+                    timestamp: Some(
+                        Utc.with_ymd_and_hms(2020, 10, 30, 16, 05, 54)
+                            .unwrap()
+                            .into()
+                    ),
                     hostname: Some("opsaudit"),
                     appname: None,
                     procid: None,
@@ -184,7 +192,11 @@ mod tests {
                     protocol: Protocol::RFC3164,
                     facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
-                    timestamp: Some(Utc.ymd(2019, 10, 11).and_hms(22, 14, 15).into()),
+                    timestamp: Some(
+                        Utc.with_ymd_and_hms(2019, 10, 11, 22, 14, 15)
+                            .unwrap()
+                            .into()
+                    ),
                     hostname: None,
                     appname: None,
                     procid: None,
@@ -211,7 +223,11 @@ mod tests {
                     protocol: Protocol::RFC3164,
                     facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
-                    timestamp: Some(Utc.ymd(2019, 10, 11).and_hms(22, 14, 15).into()),
+                    timestamp: Some(
+                        Utc.with_ymd_and_hms(2019, 10, 11, 22, 14, 15)
+                            .unwrap()
+                            .into()
+                    ),
                     hostname: Some("mymachine"),
                     appname: None,
                     procid: None,
@@ -233,7 +249,7 @@ mod tests {
                     protocol: Protocol::RFC3164,
                     facility: Some(SyslogFacility::LOG_LPR,),
                     severity: Some(SyslogSeverity::SEV_INFO,),
-                    timestamp: Some(Utc.ymd(1970, 01, 01).and_hms(0, 1, 31).into()),
+                    timestamp: Some(Utc.with_ymd_and_hms(1970, 01, 01, 0, 1, 31).unwrap().into()),
                     hostname: Some("host",),
                     appname: None,
                     procid: None,
@@ -260,7 +276,11 @@ mod tests {
                     protocol: Protocol::RFC3164,
                     facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
-                    timestamp: Some(Utc.ymd(2019, 10, 11).and_hms(22, 14, 15).into()),
+                    timestamp: Some(
+                        Utc.with_ymd_and_hms(2019, 10, 11, 22, 14, 15)
+                            .unwrap()
+                            .into()
+                    ),
                     hostname: Some("mymachine"),
                     appname: Some("app"),
                     procid: Some(ProcId::PID(323)),
@@ -287,7 +307,12 @@ mod tests {
                     protocol: Protocol::RFC3164,
                     facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
-                    timestamp: Some(FixedOffset::west(0).ymd(2020, 10, 11).and_hms(22, 14, 15)),
+                    timestamp: Some(
+                        FixedOffset::west_opt(0)
+                            .unwrap()
+                            .with_ymd_and_hms(2020, 10, 11, 22, 14, 15)
+                            .unwrap()
+                    ),
                     hostname: Some("mymachine"),
                     appname: Some("app"),
                     procid: Some(ProcId::PID(323)),
@@ -314,7 +339,7 @@ mod tests {
                     protocol: Protocol::RFC3164,
                     facility: Some(SyslogFacility::LOG_LOCAL0),
                     severity: Some(SyslogSeverity::SEV_ERR),
-                    timestamp: Some(FixedOffset::west(0).ymd(2021, 6, 8).and_hms(11, 54, 8)),
+                    timestamp: Some(FixedOffset::west_opt(0).unwrap().with_ymd_and_hms(2021, 6, 8,11, 54, 8).unwrap()),
                     hostname: Some("master"),
                     appname: Some("apache_error"),
                     procid: None,

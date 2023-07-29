@@ -1,4 +1,4 @@
-use chrono::prelude::*;
+use chrono::{prelude::*, Duration};
 use syslog_loose::{
     parse_message, parse_message_with_year, parse_message_with_year_exact,
     parse_message_with_year_exact_tz, IncompleteDate, Message, ProcId, Protocol, StructuredElement,
@@ -23,7 +23,7 @@ fn parse_nginx() {
         Message {
             facility: Some(SyslogFacility::LOG_LOCAL7),
             severity: Some(SyslogSeverity::SEV_INFO),
-            timestamp: Some(Local.ymd(2019, 12, 28).and_hms(16, 49, 07).into()),
+            timestamp: Some(Local.with_ymd_and_hms(2019, 12, 28,16, 49, 07).unwrap().into()),
             hostname: Some("plertrood-thinkpad-x220"),
             appname: Some("nginx"),
             procid: None,
@@ -45,9 +45,10 @@ fn parse_chrono_tz() {
             facility: Some(SyslogFacility::LOG_SYSLOG),
             severity: Some(SyslogSeverity::SEV_INFO),
             timestamp: Some(
-                FixedOffset::east(3600)
-                    .ymd(2020, 1, 5)
-                    .and_hms_milli(15, 33, 3, 0)
+                FixedOffset::east_opt(3600)
+                    .unwrap()
+                    .with_ymd_and_hms(2020, 1, 5, 15, 33, 3)
+                    .unwrap()
                     .into()
             ),
             hostname: Some("plertrood-ThinkPad-X220"),
@@ -71,7 +72,12 @@ fn parse_rsyslog() {
         Message {
             facility: Some(SyslogFacility::LOG_SYSLOG),
             severity: Some(SyslogSeverity::SEV_INFO),
-            timestamp: Some(Local.ymd(2020, 1, 5).and_hms_milli(15, 33, 3, 0).into()),
+            timestamp: Some(
+                Local
+                    .with_ymd_and_hms(2020, 1, 5, 15, 33, 3)
+                    .unwrap()
+                    .into()
+            ),
             hostname: Some("plertrood-ThinkPad-X220"),
             appname: Some("rsyslogd"),
             procid: None,
@@ -100,7 +106,12 @@ fn parse_haproxy() {
         Message {
             facility: Some(SyslogFacility::LOG_LOCAL0),
             severity: Some(SyslogSeverity::SEV_NOTICE),
-            timestamp: Some(Local.ymd(2020, 1, 13).and_hms_milli(16, 33, 35, 0).into()),
+            timestamp: Some(
+                Local
+                    .with_ymd_and_hms(2020, 1, 13, 16, 33, 35)
+                    .unwrap()
+                    .into()
+            ),
             hostname: None,
             appname: Some("haproxy"),
             procid: Some(ProcId::PID(73411)),
@@ -122,9 +133,11 @@ fn parse_5424_no_structured_data() {
             facility: Some(SyslogFacility::LOG_AUTH),
             severity: Some(SyslogSeverity::SEV_CRIT),
             timestamp: Some(
-                FixedOffset::west(0)
-                    .ymd(2003, 10, 11)
-                    .and_hms_milli(22, 14, 15, 3)
+                FixedOffset::west_opt(0)
+                    .unwrap()
+                    .with_ymd_and_hms(2003, 10, 11, 22, 14, 15)
+                    .unwrap()
+                    + Duration::milliseconds(3)
             ),
             hostname: Some("mymachine.example.com"),
             appname: Some("su"),
@@ -147,9 +160,11 @@ fn parse_5424_structured_data() {
             facility: Some(SyslogFacility::LOG_LOCAL4),
             severity: Some(SyslogSeverity::SEV_NOTICE),
             timestamp: Some(
-                FixedOffset::west(0)
-                    .ymd(2003, 10, 11)
-                    .and_hms_milli(22, 14, 15, 3)
+                FixedOffset::west_opt(0)
+                    .unwrap()
+                    .with_ymd_and_hms(2003, 10, 11, 22, 14, 15)
+                    .unwrap()
+                    + Duration::milliseconds(3)
             ),
             hostname: Some("mymachine.example.com"),
             appname: Some("evntslog"),
@@ -179,9 +194,11 @@ fn parse_5424_empty_structured_data() {
             facility: Some(SyslogFacility::LOG_LOCAL4),
             severity: Some(SyslogSeverity::SEV_NOTICE),
             timestamp: Some(
-                FixedOffset::west(0)
-                    .ymd(2003, 10, 11)
-                    .and_hms_milli(22, 14, 15, 3)
+                FixedOffset::west_opt(0)
+                    .unwrap()
+                    .with_ymd_and_hms(2003, 10, 11, 22, 14, 15)
+                    .unwrap()
+                    + Duration::milliseconds(3)
             ),
             hostname: Some("mymachine.example.com"),
             appname: Some("evntslog"),
@@ -207,9 +224,11 @@ fn parse_5424_multiple_structured_data() {
             facility: Some(SyslogFacility::LOG_LOCAL4),
             severity: Some(SyslogSeverity::SEV_NOTICE),
             timestamp: Some(
-                FixedOffset::west(0)
-                    .ymd(2003, 10, 11)
-                    .and_hms_milli(22, 14, 15, 3)
+                FixedOffset::west_opt(0)
+                    .unwrap()
+                    .with_ymd_and_hms(2003, 10, 11, 22, 14, 15)
+                    .unwrap()
+                    + Duration::milliseconds(3)
             ),
             hostname: Some("mymachine.example.com"),
             appname: Some("evntslog"),
@@ -246,7 +265,7 @@ fn parse_3164_invalid_structured_data() {
         Message {
             facility: Some(SyslogFacility::LOG_SYSLOG),
             severity: Some(SyslogSeverity::SEV_INFO),
-            timestamp: Some(Local.ymd(2020, 1, 5).and_hms_milli(15, 33, 3, 0).into()),
+            timestamp: Some(Local.with_ymd_and_hms(2020, 1, 5, 15, 33, 3).unwrap().into()),
             hostname: Some("plertrood-ThinkPad-X220"),
             appname: Some("rsyslogd"),
             procid: None,
@@ -267,7 +286,7 @@ fn parse_3164_no_tag() {
         Message {
             facility: Some(SyslogFacility::LOG_SYSLOG),
             severity: Some(SyslogSeverity::SEV_INFO),
-            timestamp: Some(Local.ymd(2020, 1, 5).and_hms_milli(15, 33, 3, 0).into()),
+            timestamp: Some(Local.with_ymd_and_hms(2020, 1, 5,15, 33, 3).unwrap().into()),
             hostname: Some("plertrood-ThinkPad-X220"),
             appname: None,
             procid: None,
@@ -288,7 +307,7 @@ fn parse_european_chars() {
         Message {
             facility: Some(SyslogFacility::LOG_SYSLOG),
             severity: Some(SyslogSeverity::SEV_INFO),
-            timestamp: Some(Local.ymd(2020, 1, 5).and_hms_milli(10, 1, 0, 0).into()),
+            timestamp: Some(Local.with_ymd_and_hms(2020, 1, 5, 10, 1, 0).unwrap().into()),
             hostname: Some("Übergröße"),
             appname: Some("außerplanmäßig"),
             procid: None,
@@ -327,9 +346,10 @@ fn parse_blank_msg() {
         facility: Some(SyslogFacility::LOG_CRON),
         severity: Some(SyslogSeverity::SEV_ERR),
         timestamp: Some(
-            FixedOffset::west(0)
-                .ymd(1969, 12, 3)
-                .and_hms_milli(23, 58, 58, 0),
+            FixedOffset::west_opt(0)
+                .unwrap()
+                .with_ymd_and_hms(1969, 12, 3, 23, 58, 58)
+                .unwrap(),
         ),
         hostname: None,
         appname: None,
@@ -349,9 +369,10 @@ fn parse_blank_msg() {
             facility: Some(SyslogFacility::LOG_CRON),
             severity: Some(SyslogSeverity::SEV_ERR),
             timestamp: Some(
-                FixedOffset::west(0)
-                    .ymd(1969, 12, 3)
-                    .and_hms_milli(23, 58, 58, 0),
+                FixedOffset::west_opt(0)
+                    .unwrap()
+                    .with_ymd_and_hms(1969, 12, 3, 23, 58, 58)
+                    .unwrap(),
             ),
             hostname: None,
             appname: None,
@@ -387,9 +408,10 @@ fn syslog_ng_network_syslog_protocol() {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
             timestamp: Some(
-                FixedOffset::west(0)
-                    .ymd(2019, 02, 13)
-                    .and_hms_milli(19, 48, 34, 0)
+                FixedOffset::west_opt(0)
+                    .unwrap()
+                    .with_ymd_and_hms(2019, 02, 13, 19, 48, 34)
+                    .unwrap()
             ),
             hostname: Some("74794bfb6795"),
             appname: Some("root"),
@@ -422,9 +444,10 @@ fn handles_incorrect_sd_element() {
         facility: Some(SyslogFacility::LOG_USER),
         severity: Some(SyslogSeverity::SEV_NOTICE),
         timestamp: Some(
-            FixedOffset::west(0)
-                .ymd(2019, 02, 13)
-                .and_hms_milli(19, 48, 34, 0),
+            FixedOffset::west_opt(0)
+                .unwrap()
+                .with_ymd_and_hms(2019, 02, 13, 19, 48, 34)
+                .unwrap(),
         ),
         hostname: Some("74794bfb6795"),
         appname: Some("root"),
@@ -458,9 +481,10 @@ fn handles_empty_sd_element() {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
             timestamp: Some(
-                FixedOffset::west(0)
-                    .ymd(2019, 02, 13)
-                    .and_hms_milli(19, 48, 34, 0)
+                FixedOffset::west_opt(0)
+                    .unwrap()
+                    .with_ymd_and_hms(2019, 02, 13, 19, 48, 34)
+                    .unwrap()
             ),
             hostname: Some("74794bfb6795"),
             appname: Some("root"),
@@ -486,9 +510,10 @@ fn handles_empty_sd_element() {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
             timestamp: Some(
-                FixedOffset::west(0)
-                    .ymd(2019, 02, 13)
-                    .and_hms_milli(19, 48, 34, 0)
+                FixedOffset::west_opt(0)
+                    .unwrap()
+                    .with_ymd_and_hms(2019, 02, 13, 19, 48, 34)
+                    .unwrap()
             ),
             hostname: Some("74794bfb6795"),
             appname: Some("root"),
@@ -520,9 +545,10 @@ fn handles_empty_sd_element() {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
             timestamp: Some(
-                FixedOffset::west(0)
-                    .ymd(2019, 02, 13)
-                    .and_hms_milli(19, 48, 34, 0)
+                FixedOffset::west_opt(0)
+                    .unwrap()
+                    .with_ymd_and_hms(2019, 02, 13, 19, 48, 34)
+                    .unwrap()
             ),
             hostname: Some("74794bfb6795"),
             appname: Some("root"),
@@ -554,9 +580,10 @@ fn handles_empty_sd_element() {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
             timestamp: Some(
-                FixedOffset::west(0)
-                    .ymd(2019, 02, 13)
-                    .and_hms_milli(19, 48, 34, 0)
+                FixedOffset::west_opt(0)
+                    .unwrap()
+                    .with_ymd_and_hms(2019, 02, 13, 19, 48, 34)
+                    .unwrap()
             ),
             hostname: Some("74794bfb6795"),
             appname: Some("root"),
@@ -592,7 +619,12 @@ fn syslog_ng_default_network() {
         Message {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
-            timestamp: Some(Local.ymd(2020, 02, 13).and_hms(20, 07, 26).into()),
+            timestamp: Some(
+                Local
+                    .with_ymd_and_hms(2020, 02, 13, 20, 07, 26)
+                    .unwrap()
+                    .into()
+            ),
             hostname: Some("74794bfb6795"),
             appname: Some("root"),
             procid: Some(ProcId::PID(8539)),
@@ -613,7 +645,12 @@ fn rsyslog_omfwd_tcp_default() {
         Message {
             facility: Some(SyslogFacility::LOG_LOCAL7),
             severity: Some(SyslogSeverity::SEV_INFO),
-            timestamp: Some(Local.ymd(2020, 02, 13).and_hms(21, 31, 56).into()),
+            timestamp: Some(
+                Local
+                    .with_ymd_and_hms(2020, 02, 13, 21, 31, 56)
+                    .unwrap()
+                    .into()
+            ),
             hostname: Some("74794bfb6795"),
             appname: Some("liblogging-stdlog"),
             procid: None,
@@ -643,9 +680,11 @@ fn rsyslog_omfwd_tcp_forward_format() {
             facility: Some(SyslogFacility::LOG_LOCAL7),
             severity: Some(SyslogSeverity::SEV_INFO),
             timestamp: Some(
-                FixedOffset::west(0)
-                    .ymd(2019, 02, 13)
-                    .and_hms_micro(21, 53, 30, 605_850)
+                FixedOffset::west_opt(0)
+                    .unwrap()
+                    .with_ymd_and_hms(2019, 02, 13, 21, 53, 30)
+                    .unwrap()
+                    + Duration::microseconds(605_850)
             ),
             hostname: Some("74794bfb6795"),
             appname: Some("liblogging-stdlog"),
@@ -676,9 +715,8 @@ fn logical_system_juniper_routers() {
             facility: Some(SyslogFacility::LOG_DAEMON),
             severity: Some(SyslogSeverity::SEV_WARNING),
             timestamp: Some(
-                FixedOffset::west(1800 * 6)
-                    .ymd(2020, 05, 22)
-                    .and_hms_micro(14, 59, 09, 250000)
+                FixedOffset::west_opt(1800 * 6).unwrap()
+                    .with_ymd_and_hms(2020, 05, 22,14, 59, 09).unwrap() + Duration::microseconds(250000)
             ),
             hostname: Some("OX-XXX-MX204"),
             appname: Some("OX-XXX-CONTEUDO:rpd"),
@@ -700,7 +738,7 @@ fn parse_missing_pri() {
         Message {
             facility: None,
             severity: None,
-            timestamp: Some(Local.ymd(2019, 12, 28).and_hms(16, 49, 07).into()),
+            timestamp: Some(Local.with_ymd_and_hms(2019, 12, 28,16, 49, 07).unwrap().into()),
             hostname: Some("plertrood-thinkpad-x220"),
             appname: Some("nginx"),
             procid: None,
@@ -722,9 +760,8 @@ fn parse_missing_pri_5424() {
             facility: None,
             severity: None,
             timestamp: Some(
-                FixedOffset::west(1800 * 6)
-                    .ymd(2020, 05, 22)
-                    .and_hms_micro(14, 59, 09, 250000)
+                FixedOffset::west_opt(1800 * 6).unwrap()
+                    .with_ymd_and_hms(2020, 05, 22,14, 59, 09).unwrap() + Duration::microseconds(250000)
             ),
             hostname: Some("OX-XXX-MX204"),
             appname: Some("OX-XXX-CONTEUDO:rpd"),
@@ -750,13 +787,13 @@ fn parse_exact_error() {
 #[test]
 fn parse_exact_with_tz() {
     let raw = r#"<13>Feb 13 20:07:26 74794bfb6795 root[8539]: i am foobar"#;
-    let tz = chrono::FixedOffset::east(5 * 3600);
+    let tz = chrono::FixedOffset::east_opt(5 * 3600).unwrap();
     assert_eq!(
         parse_message_with_year_exact_tz(&raw, with_year, Some(tz)).unwrap(),
         Message {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
-            timestamp: Some(tz.ymd(2020, 02, 13).and_hms_micro(20, 7, 26, 0)),
+            timestamp: Some(tz.with_ymd_and_hms(2020, 02, 13, 20, 7, 26).unwrap()),
             hostname: Some("74794bfb6795"),
             appname: Some("root"),
             procid: Some(ProcId::PID(8539)),

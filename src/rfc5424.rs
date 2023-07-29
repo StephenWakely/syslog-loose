@@ -75,7 +75,7 @@ pub(crate) fn parse(input: &str) -> IResult<&str, Message<&str>> {
 mod tests {
     use super::*;
     use crate::pri::{SyslogFacility, SyslogSeverity};
-    use chrono::prelude::*;
+    use chrono::{prelude::*, Duration};
 
     #[test]
     fn parse_5424() {
@@ -89,9 +89,11 @@ mod tests {
                     facility: Some(SyslogFacility::LOG_AUTH),
                     severity: Some(SyslogSeverity::SEV_CRIT),
                     timestamp: Some(
-                        FixedOffset::west(0)
-                            .ymd(2003, 10, 11)
-                            .and_hms_milli(22, 14, 15, 3)
+                        FixedOffset::west_opt(0)
+                            .unwrap()
+                            .with_ymd_and_hms(2003, 10, 11, 22, 14, 15,)
+                            .unwrap()
+                            + Duration::milliseconds(3)
                     ),
                     hostname: Some("mymachine.example.com"),
                     appname: Some("su"),
