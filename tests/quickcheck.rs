@@ -79,7 +79,7 @@ impl Arbitrary for Wrapper<Message<String>> {
         Wrapper(Message {
             facility,
             severity,
-            timestamp: Some(Utc.timestamp(secs as i64, 0).into()),
+            timestamp: Some(Utc.timestamp_opt(secs as i64, 0).unwrap().into()),
             hostname: gen_str::<HostNameString>(g),
             appname,
             procid,
