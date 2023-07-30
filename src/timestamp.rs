@@ -217,7 +217,7 @@ mod tests {
                 " ",
                 FixedOffset::west_opt(0)
                     .unwrap()
-                    .with_ymd_and_hms(2008, 12, 28, 16, 49, 07)
+                    .with_ymd_and_hms(2008, 12, 28, 16, 49, 7)
                     .unwrap()
             )
         );
@@ -227,18 +227,15 @@ mod tests {
     fn parse_timestamp_no_year_3164_local_time() {
         let offset = Local
             .offset_from_local_datetime(
-                &NaiveDate::from_ymd_opt(2019, 08, 04)
+                &NaiveDate::from_ymd_opt(2019, 8, 4)
                     .unwrap()
-                    .and_hms_opt(16, 49, 07)
+                    .and_hms_opt(16, 49, 7)
                     .unwrap(),
             )
             .unwrap();
         assert_eq!(
             timestamp_3164::<_, Local>(|_| 2019, None)("Aug 4 16:49:07 ",).unwrap(),
-            (
-                " ",
-                offset.with_ymd_and_hms(2019, 8, 4, 16, 49, 07).unwrap()
-            )
+            (" ", offset.with_ymd_and_hms(2019, 8, 4, 16, 49, 7).unwrap())
         );
     }
 
@@ -246,18 +243,15 @@ mod tests {
     fn parse_timestamp_with_year_3164_local_time() {
         let offset = Local
             .offset_from_local_datetime(
-                &NaiveDate::from_ymd_opt(2020, 08, 04)
+                &NaiveDate::from_ymd_opt(2020, 8, 4)
                     .unwrap()
-                    .and_hms_opt(16, 49, 07)
+                    .and_hms_opt(16, 49, 7)
                     .unwrap(),
             )
             .unwrap();
         assert_eq!(
             timestamp_3164::<_, Local>(|_| 2019, None)("Aug 4 2020 16:49:07 ",).unwrap(),
-            (
-                " ",
-                offset.with_ymd_and_hms(2020, 8, 4, 16, 49, 07).unwrap()
-            )
+            (" ", offset.with_ymd_and_hms(2020, 8, 4, 16, 49, 7).unwrap())
         );
     }
 }

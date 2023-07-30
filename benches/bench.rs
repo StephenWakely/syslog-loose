@@ -40,7 +40,7 @@ fn parse_bench_rfc5424(c: &mut Criterion<CyclesPerByte>) {
 
         group.throughput(Throughput::Bytes(bytes));
         group.bench_with_input(BenchmarkId::new(name, bytes), line, |b, line| {
-            b.iter(|| syslog_loose::parse_message(&line, Variant::Either))
+            b.iter(|| syslog_loose::parse_message(line, Variant::Either))
         });
     }
     group.finish();

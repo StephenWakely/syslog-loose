@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("{}", line);
         println!(
             "{:#?}",
-            syslog_loose::parse_message_with_year(&line, resolve_year, Variant::Either)
+            syslog_loose::parse_message_with_year(line, resolve_year, Variant::Either)
         );
     }
 }
