@@ -100,6 +100,7 @@ where
 /// * input - the string containing the message.
 /// * get_year - a function that is called if the parsed message contains a date with no year.
 ///              the function takes a (month, date, hour, minute, second) tuple and should return the year to use.
+/// * variant - the variant of message we are expecting to receive.
 ///
 pub fn parse_message_with_year<F>(input: &str, get_year: F, variant: Variant) -> Message<&str>
 where
@@ -115,6 +116,7 @@ where
 /// # Arguments
 ///
 /// * input - the string containing the message.
+/// * variant - the variant of message we are expecting to receive.
 ///
 pub fn parse_message(input: &str, variant: Variant) -> Message<&str> {
     parse_message_with_year(input, |_| Local::now().year(), variant)
@@ -130,6 +132,7 @@ pub fn parse_message(input: &str, variant: Variant) -> Message<&str> {
 /// * input - the string containing the message.
 /// * get_year - a function that is called if the parsed message contains a date with no year.
 ///              the function takes a (month, date, hour, minute, second) tuple and should return the year to use.
+/// * variant - the variant of message we are expecting to receive.
 ///
 pub fn parse_message_with_year_exact<F>(
     input: &str,
@@ -155,6 +158,7 @@ where
 /// * tz - a default timezone to use if the parsed timestamp does not specify one
 /// * get_year - a function that is called if the parsed message contains a date with no year.
 ///              the function takes a (month, date, hour, minute, second) tuple and should return the year to use.
+/// * variant - the variant of message we are expecting to receive.
 ///
 pub fn parse_message_with_year_exact_tz<F, Tz: TimeZone + Copy>(
     input: &str,
