@@ -10,7 +10,9 @@ use non_empty_string::{
     ValueString,
 };
 use quickcheck::{Arbitrary, Gen, QuickCheck, TestResult};
-use syslog_loose::{decompose_pri, parse_message, Message, ProcId, Protocol, StructuredElement};
+use syslog_loose::{
+    decompose_pri, parse_message, Message, ProcId, Protocol, StructuredElement, Variant,
+};
 
 /// Create a wrapper struct for us to implement Arbitrary against
 #[derive(Clone, Debug)]
@@ -235,7 +237,7 @@ fn inner_parses_generated_messages(msg: Wrapper<Message<String>>) -> TestResult 
     let text = format!("{}", msg);
 
     // Parse it.
-    let parsed: Message<&str> = parse_message(&text);
+    let parsed: Message<&str> = parse_message(&text, Variant::Either);
     let parsed = parsed.into();
     let result = msg == parsed;
 

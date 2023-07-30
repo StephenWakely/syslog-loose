@@ -47,7 +47,7 @@ where
             alt((rfc5424::parse, |input| rfc3164::parse(input, get_year, tz)))(input.trim())
         }
         Variant::RFC3164 => rfc3164::parse(input.trim(), get_year, tz),
-        Variant::RFC5424 => rfc5424::parse(input),
+        Variant::RFC5424 => rfc5424::parse(input.trim()),
     }
 }
 
