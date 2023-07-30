@@ -2,7 +2,7 @@ use chrono::{prelude::*, Duration};
 use syslog_loose::{
     parse_message, parse_message_with_year, parse_message_with_year_exact,
     parse_message_with_year_exact_tz, IncompleteDate, Message, ProcId, Protocol, StructuredElement,
-    SyslogFacility, SyslogSeverity,
+    SyslogFacility, SyslogSeverity, Variant,
 };
 
 fn with_year((month, _date, _hour, _min, _sec): IncompleteDate) -> i32 {
@@ -19,7 +19,7 @@ fn parse_nginx() {
     let msg = "<190>Dec 28 16:49:07 plertrood-thinkpad-x220 nginx: 127.0.0.1 - - [28/Dec/2019:16:49:07 +0000] \"GET / HTTP/1.1\" 304 0 \"-\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0\"";
 
     assert_eq!(
-        parse_message_with_year(msg, with_year),
+        parse_message_with_year(msg, with_year, Variant::RFC3164),
         Message {
             facility: Some(SyslogFacility::LOG_LOCAL7),
             severity: Some(SyslogSeverity::SEV_INFO),
@@ -40,7 +40,13 @@ fn parse_chrono_tz() {
     let msg = "<46>Jan  5 15:33:03 plertrood-ThinkPad-X220 rsyslogd: start";
 
     assert_eq!(
-        parse_message_with_year_exact_tz(msg, with_year, Some(chrono_tz::Europe::Paris)).unwrap(),
+        parse_message_with_year_exact_tz(
+            msg,
+            with_year,
+            Some(chrono_tz::Europe::Paris),
+            Variant::Either
+        )
+        .unwrap(),
         Message {
             facility: Some(SyslogFacility::LOG_SYSLOG),
             severity: Some(SyslogSeverity::SEV_INFO),
@@ -68,7 +74,7 @@ fn parse_rsyslog() {
     let msg = "<46>Jan  5 15:33:03 plertrood-ThinkPad-X220 rsyslogd:  [origin software=\"rsyslogd\" swVersion=\"8.32.0\" x-pid=\"20506\" x-info=\"http://www.rsyslog.com\"] start";
 
     assert_eq!(
-        parse_message_with_year(msg, with_year),
+        parse_message_with_year(msg, with_year, Variant::Either),
         Message {
             facility: Some(SyslogFacility::LOG_SYSLOG),
             severity: Some(SyslogSeverity::SEV_INFO),
@@ -102,7 +108,7 @@ fn parse_haproxy() {
     // haproxy doesnt include the hostname.
     let msg = "<133>Jan 13 16:33:35 haproxy[73411]: Proxy sticky-servers started.";
     assert_eq!(
-        parse_message_with_year(msg, with_year),
+        parse_message_with_year(msg, with_year, Variant::Either),
         Message {
             facility: Some(SyslogFacility::LOG_LOCAL0),
             severity: Some(SyslogSeverity::SEV_NOTICE),
@@ -128,7 +134,7 @@ fn parse_5424_no_structured_data() {
     let msg = "<34>1 2003-10-11T22:14:15.003Z mymachine.example.com su - ID47 - BOM'su root' failed for lonvick on /dev/pts/8";
 
     assert_eq!(
-        parse_message(msg),
+        parse_message(msg, Variant::RFC5424),
         Message {
             facility: Some(SyslogFacility::LOG_AUTH),
             severity: Some(SyslogSeverity::SEV_CRIT),
@@ -155,7 +161,7 @@ fn parse_5424_structured_data() {
     let msg = "<165>1 2003-10-11T22:14:15.003Z mymachine.example.com evntslog - ID47 [exampleSDID@32473 iut=\"3\" eventSource=\"Application\" eventID=\"1011\"] BOMAn application event log entry...";
 
     assert_eq!(
-        parse_message(msg),
+        parse_message(msg, Variant::RFC5424),
         Message {
             facility: Some(SyslogFacility::LOG_LOCAL4),
             severity: Some(SyslogSeverity::SEV_NOTICE),
@@ -189,7 +195,7 @@ fn parse_5424_empty_structured_data() {
     let msg = "<165>1 2003-10-11T22:14:15.003Z mymachine.example.com evntslog - ID47 [exampleSDID@32473 iut=\"3\" eventSource=\"\" eventID=\"1011\"] BOMAn application event log entry...";
 
     assert_eq!(
-        parse_message(msg),
+        parse_message(msg, Variant::RFC5424),
         Message {
             facility: Some(SyslogFacility::LOG_LOCAL4),
             severity: Some(SyslogSeverity::SEV_NOTICE),
@@ -219,7 +225,7 @@ fn parse_5424_multiple_structured_data() {
     let msg = "<165>1 2003-10-11T22:14:15.003Z mymachine.example.com evntslog - ID47 [exampleSDID@32473 iut=\"3\" eventSource= \"Application\" eventID=\"1011\"][examplePriority@32473 class=\"high\"] BOMAn application event log entry...";
 
     assert_eq!(
-        parse_message(msg),
+        parse_message(msg, Variant::RFC5424),
         Message {
             facility: Some(SyslogFacility::LOG_LOCAL4),
             severity: Some(SyslogSeverity::SEV_NOTICE),
@@ -261,7 +267,7 @@ fn parse_3164_invalid_structured_data() {
     let msg = "<46>Jan  5 15:33:03 plertrood-ThinkPad-X220 rsyslogd:  [software=\"rsyslogd\" swVersion=\"8.32.0\" x-pid=\"20506\" x-info=\"http://www.rsyslog.com\"] start";
 
     assert_eq!(
-        parse_message_with_year(msg, with_year),
+        parse_message_with_year(msg, with_year, Variant::Either),
         Message {
             facility: Some(SyslogFacility::LOG_SYSLOG),
             severity: Some(SyslogSeverity::SEV_INFO),
@@ -282,7 +288,7 @@ fn parse_3164_no_tag() {
     let msg = "<46>Jan  5 15:33:03 plertrood-ThinkPad-X220  [software=\"rsyslogd\" swVersion=\"8.32.0\" x-pid=\"20506\" x-info=\"http://www.rsyslog.com\"] start";
 
     assert_eq!(
-        parse_message_with_year(msg, with_year),
+        parse_message_with_year(msg, with_year, Variant::Either),
         Message {
             facility: Some(SyslogFacility::LOG_SYSLOG),
             severity: Some(SyslogSeverity::SEV_INFO),
@@ -303,7 +309,7 @@ fn parse_european_chars() {
     let msg = "<46>Jan 5 10:01:00 Übergröße außerplanmäßig größenordnungsmäßig";
 
     assert_eq!(
-        parse_message_with_year(msg, with_year),
+        parse_message_with_year(msg, with_year, Variant::Either),
         Message {
             facility: Some(SyslogFacility::LOG_SYSLOG),
             severity: Some(SyslogSeverity::SEV_INFO),
@@ -324,7 +330,7 @@ fn parse_invalid_message() {
     let msg = "complete and utter gobbledegook";
 
     assert_eq!(
-        parse_message_with_year(msg, with_year),
+        parse_message_with_year(msg, with_year, Variant::Either),
         Message {
             facility: None,
             severity: None,
@@ -364,7 +370,7 @@ fn parse_blank_msg() {
     let msg = format!("{}", ook);
 
     assert_eq!(
-        parse_message(&msg),
+        parse_message(&msg, Variant::Either),
         Message {
             facility: Some(SyslogFacility::LOG_CRON),
             severity: Some(SyslogSeverity::SEV_ERR),
@@ -403,7 +409,7 @@ fn syslog_ng_network_syslog_protocol() {
     );
 
     assert_eq!(
-        parse_message(&raw),
+        parse_message(&raw, Variant::Either),
         Message {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
@@ -458,14 +464,14 @@ fn handles_incorrect_sd_element() {
         msg: "qwerty",
     };
 
-    assert_eq!(parse_message(&msg), should);
+    assert_eq!(parse_message(&msg, Variant::Either), should);
 
     let msg = format!(
         r#"<13>1 2019-02-13T19:48:34+00:00 74794bfb6795 root 8449 - {} qwerty"#,
         r#"[incorrect x=]"#
     );
 
-    assert_eq!(parse_message(&msg), should);
+    assert_eq!(parse_message(&msg, Variant::Either), should);
 }
 
 #[test]
@@ -476,7 +482,7 @@ fn handles_empty_sd_element() {
     );
 
     assert_eq!(
-        parse_message(&msg),
+        parse_message(&msg, Variant::Either),
         Message {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
@@ -505,7 +511,7 @@ fn handles_empty_sd_element() {
     );
 
     assert_eq!(
-        parse_message(&msg),
+        parse_message(&msg, Variant::Either),
         Message {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
@@ -540,7 +546,7 @@ fn handles_empty_sd_element() {
     );
 
     assert_eq!(
-        parse_message(&msg),
+        parse_message(&msg, Variant::Either),
         Message {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
@@ -575,7 +581,7 @@ fn handles_empty_sd_element() {
     );
 
     assert_eq!(
-        parse_message(&msg),
+        parse_message(&msg, Variant::Either),
         Message {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
@@ -607,7 +613,10 @@ fn handles_weird_whitespace() {
             "#;
     let cleaned = r#"<13>1 2019-02-13T19:48:34+00:00 74794bfb6795 root 8449 - [meta sequenceId="1"] i am foobar"#;
 
-    assert_eq!(parse_message(&raw), parse_message(&cleaned));
+    assert_eq!(
+        parse_message(&raw, Variant::Either),
+        parse_message(&cleaned, Variant::Either)
+    );
 }
 
 #[test]
@@ -615,7 +624,7 @@ fn syslog_ng_default_network() {
     let raw = r#"<13>Feb 13 20:07:26 74794bfb6795 root[8539]: i am foobar"#;
 
     assert_eq!(
-        parse_message_with_year(&raw, with_year),
+        parse_message_with_year(&raw, with_year, Variant::Either),
         Message {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
@@ -641,7 +650,7 @@ fn rsyslog_omfwd_tcp_default() {
     let raw = r#"<190>Feb 13 21:31:56 74794bfb6795 liblogging-stdlog:  [origin software="rsyslogd" swVersion="8.24.0" x-pid="8979" x-info="http://www.rsyslog.com"] start"#;
 
     assert_eq!(
-        parse_message_with_year(&raw, with_year),
+        parse_message_with_year(&raw, with_year, Variant::Either),
         Message {
             facility: Some(SyslogFacility::LOG_LOCAL7),
             severity: Some(SyslogSeverity::SEV_INFO),
@@ -675,7 +684,7 @@ fn rsyslog_omfwd_tcp_forward_format() {
     let raw = r#"<190>2019-02-13T21:53:30.605850+00:00 74794bfb6795 liblogging-stdlog:  [origin software="rsyslogd" swVersion="8.24.0" x-pid="9043" x-info="http://www.rsyslog.com"] start"#;
 
     assert_eq!(
-        parse_message_with_year(&raw, with_year),
+        parse_message_with_year(&raw, with_year, Variant::Either),
         Message {
             facility: Some(SyslogFacility::LOG_LOCAL7),
             severity: Some(SyslogSeverity::SEV_INFO),
@@ -710,7 +719,7 @@ fn logical_system_juniper_routers() {
     let raw = r#"<28>1 2020-05-22T14:59:09.250-03:00 OX-XXX-MX204 OX-XXX-CONTEUDO:rpd 6589 - - bgp_listen_accept: %DAEMON-4: Connection attempt from unconfigured neighbor: 2001:XXX::219:166+57284"#;
 
     assert_eq!(
-        parse_message_with_year(&raw, with_year),
+        parse_message_with_year(&raw, with_year, Variant::Either),
         Message {
             facility: Some(SyslogFacility::LOG_DAEMON),
             severity: Some(SyslogSeverity::SEV_WARNING),
@@ -734,7 +743,7 @@ fn parse_missing_pri() {
     let msg = "Dec 28 16:49:07 plertrood-thinkpad-x220 nginx: 127.0.0.1 - - [28/Dec/2019:16:49:07 +0000] \"GET / HTTP/1.1\" 304 0 \"-\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0\"";
 
     assert_eq!(
-        parse_message_with_year(msg, with_year),
+        parse_message_with_year(msg, with_year, Variant::Either),
         Message {
             facility: None,
             severity: None,
@@ -755,7 +764,7 @@ fn parse_missing_pri_5424() {
     let raw = r#"1 2020-05-22T14:59:09.250-03:00 OX-XXX-MX204 OX-XXX-CONTEUDO:rpd 6589 - - bgp_listen_accept: %DAEMON-4: Connection attempt from unconfigured neighbor: 2001:XXX::219:166+57284"#;
 
     assert_eq!(
-        parse_message_with_year(&raw, with_year),
+        parse_message_with_year(&raw, with_year, Variant::Either),
         Message {
             facility: None,
             severity: None,
@@ -779,7 +788,7 @@ fn parse_exact_error() {
     let raw = r#"I am an invalid syslog message, but I do like cheese"#;
 
     assert_eq!(
-        parse_message_with_year_exact(&raw, with_year),
+        parse_message_with_year_exact(&raw, with_year, Variant::Either),
         Err("unable to parse input as valid syslog message".to_string())
     );
 }
@@ -789,7 +798,7 @@ fn parse_exact_with_tz() {
     let raw = r#"<13>Feb 13 20:07:26 74794bfb6795 root[8539]: i am foobar"#;
     let tz = chrono::FixedOffset::east_opt(5 * 3600).unwrap();
     assert_eq!(
-        parse_message_with_year_exact_tz(&raw, with_year, Some(tz)).unwrap(),
+        parse_message_with_year_exact_tz(&raw, with_year, Some(tz), Variant::Either).unwrap(),
         Message {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
@@ -812,5 +821,5 @@ fn parse_invalid_date() {
     }
 
     let raw = r#"<134> Feb 29 14:07:19 myhostname sshd - - - this is my message"#;
-    assert!(parse_message_with_year_exact(&raw, non_leapyear).is_err());
+    assert!(parse_message_with_year_exact(&raw, non_leapyear, Variant::Either).is_err());
 }
