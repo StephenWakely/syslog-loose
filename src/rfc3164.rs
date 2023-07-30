@@ -108,7 +108,7 @@ fn parse_tag_with_pid() {
 
 #[test]
 fn parse_tag_without_pid() {
-    assert_eq!(systag("app ").is_err(), true);
+    assert!(systag("app ").is_err());
 }
 
 #[cfg(test)]
@@ -165,7 +165,7 @@ mod tests {
                     facility: Some(SyslogFacility::LOG_LOCAL0),
                     severity: Some(SyslogSeverity::SEV_INFO),
                     timestamp: Some(
-                        Utc.with_ymd_and_hms(2020, 10, 30, 16, 05, 54)
+                        Utc.with_ymd_and_hms(2020, 10, 30, 16, 5, 54)
                             .unwrap()
                             .into()
                     ),
@@ -249,7 +249,7 @@ mod tests {
                     protocol: Protocol::RFC3164,
                     facility: Some(SyslogFacility::LOG_LPR,),
                     severity: Some(SyslogSeverity::SEV_INFO,),
-                    timestamp: Some(Utc.with_ymd_and_hms(1970, 01, 01, 0, 1, 31).unwrap().into()),
+                    timestamp: Some(Utc.with_ymd_and_hms(1970, 1, 1, 0, 1, 31).unwrap().into()),
                     hostname: Some("host",),
                     appname: None,
                     procid: None,

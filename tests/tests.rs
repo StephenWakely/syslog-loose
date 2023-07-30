@@ -23,7 +23,7 @@ fn parse_nginx() {
         Message {
             facility: Some(SyslogFacility::LOG_LOCAL7),
             severity: Some(SyslogSeverity::SEV_INFO),
-            timestamp: Some(Local.with_ymd_and_hms(2019, 12, 28,16, 49, 07).unwrap().into()),
+            timestamp: Some(Local.with_ymd_and_hms(2019, 12, 28,16, 49, 7).unwrap().into()),
             hostname: Some("plertrood-thinkpad-x220"),
             appname: Some("nginx"),
             procid: None,
@@ -55,7 +55,6 @@ fn parse_chrono_tz() {
                     .unwrap()
                     .with_ymd_and_hms(2020, 1, 5, 15, 33, 3)
                     .unwrap()
-                    .into()
             ),
             hostname: Some("plertrood-ThinkPad-X220"),
             appname: Some("rsyslogd"),
@@ -416,7 +415,7 @@ fn syslog_ng_network_syslog_protocol() {
             timestamp: Some(
                 FixedOffset::west_opt(0)
                     .unwrap()
-                    .with_ymd_and_hms(2019, 02, 13, 19, 48, 34)
+                    .with_ymd_and_hms(2019, 2, 13, 19, 48, 34)
                     .unwrap()
             ),
             hostname: Some("74794bfb6795"),
@@ -452,7 +451,7 @@ fn handles_incorrect_sd_element() {
         timestamp: Some(
             FixedOffset::west_opt(0)
                 .unwrap()
-                .with_ymd_and_hms(2019, 02, 13, 19, 48, 34)
+                .with_ymd_and_hms(2019, 2, 13, 19, 48, 34)
                 .unwrap(),
         ),
         hostname: Some("74794bfb6795"),
@@ -489,7 +488,7 @@ fn handles_empty_sd_element() {
             timestamp: Some(
                 FixedOffset::west_opt(0)
                     .unwrap()
-                    .with_ymd_and_hms(2019, 02, 13, 19, 48, 34)
+                    .with_ymd_and_hms(2019, 2, 13, 19, 48, 34)
                     .unwrap()
             ),
             hostname: Some("74794bfb6795"),
@@ -518,7 +517,7 @@ fn handles_empty_sd_element() {
             timestamp: Some(
                 FixedOffset::west_opt(0)
                     .unwrap()
-                    .with_ymd_and_hms(2019, 02, 13, 19, 48, 34)
+                    .with_ymd_and_hms(2019, 2, 13, 19, 48, 34)
                     .unwrap()
             ),
             hostname: Some("74794bfb6795"),
@@ -553,7 +552,7 @@ fn handles_empty_sd_element() {
             timestamp: Some(
                 FixedOffset::west_opt(0)
                     .unwrap()
-                    .with_ymd_and_hms(2019, 02, 13, 19, 48, 34)
+                    .with_ymd_and_hms(2019, 2, 13, 19, 48, 34)
                     .unwrap()
             ),
             hostname: Some("74794bfb6795"),
@@ -588,7 +587,7 @@ fn handles_empty_sd_element() {
             timestamp: Some(
                 FixedOffset::west_opt(0)
                     .unwrap()
-                    .with_ymd_and_hms(2019, 02, 13, 19, 48, 34)
+                    .with_ymd_and_hms(2019, 2, 13, 19, 48, 34)
                     .unwrap()
             ),
             hostname: Some("74794bfb6795"),
@@ -614,8 +613,8 @@ fn handles_weird_whitespace() {
     let cleaned = r#"<13>1 2019-02-13T19:48:34+00:00 74794bfb6795 root 8449 - [meta sequenceId="1"] i am foobar"#;
 
     assert_eq!(
-        parse_message(&raw, Variant::Either),
-        parse_message(&cleaned, Variant::Either)
+        parse_message(raw, Variant::Either),
+        parse_message(cleaned, Variant::Either)
     );
 }
 
@@ -624,13 +623,13 @@ fn syslog_ng_default_network() {
     let raw = r#"<13>Feb 13 20:07:26 74794bfb6795 root[8539]: i am foobar"#;
 
     assert_eq!(
-        parse_message_with_year(&raw, with_year, Variant::Either),
+        parse_message_with_year(raw, with_year, Variant::Either),
         Message {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
             timestamp: Some(
                 Local
-                    .with_ymd_and_hms(2020, 02, 13, 20, 07, 26)
+                    .with_ymd_and_hms(2020, 2, 13, 20, 7, 26)
                     .unwrap()
                     .into()
             ),
@@ -650,13 +649,13 @@ fn rsyslog_omfwd_tcp_default() {
     let raw = r#"<190>Feb 13 21:31:56 74794bfb6795 liblogging-stdlog:  [origin software="rsyslogd" swVersion="8.24.0" x-pid="8979" x-info="http://www.rsyslog.com"] start"#;
 
     assert_eq!(
-        parse_message_with_year(&raw, with_year, Variant::Either),
+        parse_message_with_year(raw, with_year, Variant::Either),
         Message {
             facility: Some(SyslogFacility::LOG_LOCAL7),
             severity: Some(SyslogSeverity::SEV_INFO),
             timestamp: Some(
                 Local
-                    .with_ymd_and_hms(2020, 02, 13, 21, 31, 56)
+                    .with_ymd_and_hms(2020, 2, 13, 21, 31, 56)
                     .unwrap()
                     .into()
             ),
@@ -684,14 +683,14 @@ fn rsyslog_omfwd_tcp_forward_format() {
     let raw = r#"<190>2019-02-13T21:53:30.605850+00:00 74794bfb6795 liblogging-stdlog:  [origin software="rsyslogd" swVersion="8.24.0" x-pid="9043" x-info="http://www.rsyslog.com"] start"#;
 
     assert_eq!(
-        parse_message_with_year(&raw, with_year, Variant::Either),
+        parse_message_with_year(raw, with_year, Variant::Either),
         Message {
             facility: Some(SyslogFacility::LOG_LOCAL7),
             severity: Some(SyslogSeverity::SEV_INFO),
             timestamp: Some(
                 FixedOffset::west_opt(0)
                     .unwrap()
-                    .with_ymd_and_hms(2019, 02, 13, 21, 53, 30)
+                    .with_ymd_and_hms(2019, 2, 13, 21, 53, 30)
                     .unwrap()
                     + Duration::microseconds(605_850)
             ),
@@ -719,13 +718,13 @@ fn logical_system_juniper_routers() {
     let raw = r#"<28>1 2020-05-22T14:59:09.250-03:00 OX-XXX-MX204 OX-XXX-CONTEUDO:rpd 6589 - - bgp_listen_accept: %DAEMON-4: Connection attempt from unconfigured neighbor: 2001:XXX::219:166+57284"#;
 
     assert_eq!(
-        parse_message_with_year(&raw, with_year, Variant::Either),
+        parse_message_with_year(raw, with_year, Variant::Either),
         Message {
             facility: Some(SyslogFacility::LOG_DAEMON),
             severity: Some(SyslogSeverity::SEV_WARNING),
             timestamp: Some(
                 FixedOffset::west_opt(1800 * 6).unwrap()
-                    .with_ymd_and_hms(2020, 05, 22,14, 59, 09).unwrap() + Duration::microseconds(250000)
+                    .with_ymd_and_hms(2020, 5, 22,14, 59, 9).unwrap() + Duration::microseconds(250000)
             ),
             hostname: Some("OX-XXX-MX204"),
             appname: Some("OX-XXX-CONTEUDO:rpd"),
@@ -747,7 +746,7 @@ fn parse_missing_pri() {
         Message {
             facility: None,
             severity: None,
-            timestamp: Some(Local.with_ymd_and_hms(2019, 12, 28,16, 49, 07).unwrap().into()),
+            timestamp: Some(Local.with_ymd_and_hms(2019, 12, 28,16, 49, 7).unwrap().into()),
             hostname: Some("plertrood-thinkpad-x220"),
             appname: Some("nginx"),
             procid: None,
@@ -764,13 +763,13 @@ fn parse_missing_pri_5424() {
     let raw = r#"1 2020-05-22T14:59:09.250-03:00 OX-XXX-MX204 OX-XXX-CONTEUDO:rpd 6589 - - bgp_listen_accept: %DAEMON-4: Connection attempt from unconfigured neighbor: 2001:XXX::219:166+57284"#;
 
     assert_eq!(
-        parse_message_with_year(&raw, with_year, Variant::Either),
+        parse_message_with_year(raw, with_year, Variant::Either),
         Message {
             facility: None,
             severity: None,
             timestamp: Some(
                 FixedOffset::west_opt(1800 * 6).unwrap()
-                    .with_ymd_and_hms(2020, 05, 22,14, 59, 09).unwrap() + Duration::microseconds(250000)
+                    .with_ymd_and_hms(2020, 5, 22,14, 59, 9).unwrap() + Duration::microseconds(250000)
             ),
             hostname: Some("OX-XXX-MX204"),
             appname: Some("OX-XXX-CONTEUDO:rpd"),
@@ -788,7 +787,7 @@ fn parse_exact_error() {
     let raw = r#"I am an invalid syslog message, but I do like cheese"#;
 
     assert_eq!(
-        parse_message_with_year_exact(&raw, with_year, Variant::Either),
+        parse_message_with_year_exact(raw, with_year, Variant::Either),
         Err("unable to parse input as valid syslog message".to_string())
     );
 }
@@ -798,11 +797,11 @@ fn parse_exact_with_tz() {
     let raw = r#"<13>Feb 13 20:07:26 74794bfb6795 root[8539]: i am foobar"#;
     let tz = chrono::FixedOffset::east_opt(5 * 3600).unwrap();
     assert_eq!(
-        parse_message_with_year_exact_tz(&raw, with_year, Some(tz), Variant::Either).unwrap(),
+        parse_message_with_year_exact_tz(raw, with_year, Some(tz), Variant::Either).unwrap(),
         Message {
             facility: Some(SyslogFacility::LOG_USER),
             severity: Some(SyslogSeverity::SEV_NOTICE),
-            timestamp: Some(tz.with_ymd_and_hms(2020, 02, 13, 20, 7, 26).unwrap()),
+            timestamp: Some(tz.with_ymd_and_hms(2020, 2, 13, 20, 7, 26).unwrap()),
             hostname: Some("74794bfb6795"),
             appname: Some("root"),
             procid: Some(ProcId::PID(8539)),
@@ -821,5 +820,5 @@ fn parse_invalid_date() {
     }
 
     let raw = r#"<134> Feb 29 14:07:19 myhostname sshd - - - this is my message"#;
-    assert!(parse_message_with_year_exact(&raw, non_leapyear, Variant::Either).is_err());
+    assert!(parse_message_with_year_exact(raw, non_leapyear, Variant::Either).is_err());
 }
