@@ -98,7 +98,7 @@ impl<'a, S: AsRef<str> + Ord + Clone> Iterator for ParamsIter<'a, S> {
                     escaped = false;
                     trimmed.push('\n');
                 } else if c != '"' && c != ']' && c != '\\' && escaped {
-                    // If the character following the escape isn't a ', " or ] we treat it like an unescaped character.
+                    // If the character following the escape isn't a \, " or ] we treat it like an normal unescaped character.
                     escaped = false;
                     trimmed.push('\\');
                     trimmed.push(c);

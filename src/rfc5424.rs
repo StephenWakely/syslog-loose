@@ -1,4 +1,4 @@
-///! Parsers for rfc 5424 specific formats.
+//! Parsers for rfc 5424 specific formats.
 use crate::{
     message::{Message, Protocol},
     parsers::{appname, digits, hostname, msgid, procid},

@@ -1,4 +1,4 @@
-///! Parsers shared by both protocols.
+//! Parsers shared by both protocols.
 use nom::{
     bytes::complete::take_while1, character::complete::digit1, combinator::map,
     combinator::map_res, IResult,
