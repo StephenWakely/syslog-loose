@@ -5,6 +5,7 @@ use criterion::{BenchmarkId, Criterion, Throughput};
 use criterion_cycles_per_byte::CyclesPerByte;
 use std::convert::TryInto;
 use std::include_str;
+use syslog_loose::Variant;
 
 struct Parameter<'a> {
     line: &'a str,
@@ -39,7 +40,7 @@ fn parse_bench_rfc5424(c: &mut Criterion<CyclesPerByte>) {
 
         group.throughput(Throughput::Bytes(bytes));
         group.bench_with_input(BenchmarkId::new(name, bytes), line, |b, line| {
-            b.iter(|| syslog_loose::parse_message(&line))
+            b.iter(|| syslog_loose::parse_message(&line, Variant::Either))
         });
     }
     group.finish();

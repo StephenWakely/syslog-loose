@@ -2,6 +2,7 @@ extern crate syslog_loose;
 
 use chrono::prelude::*;
 use std::net::UdpSocket;
+use syslog_loose::Variant;
 
 fn resolve_year((month, _date, _hour, _min, _sec): syslog_loose::IncompleteDate) -> i32 {
     let now = Utc::now();
@@ -22,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("{}", line);
         println!(
             "{:#?}",
-            syslog_loose::parse_message_with_year(&line, resolve_year)
+            syslog_loose::parse_message_with_year(&line, resolve_year, Variant::Either)
         );
     }
 }
