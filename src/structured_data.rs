@@ -1,7 +1,7 @@
 use nom::{
     branch::alt,
     bytes::complete::{escaped, tag, take_till1, take_until, take_while1},
-    character::complete::{one_of, space0},
+    character::complete::{anychar, space0},
     combinator::map,
     multi::{many1, separated_list0},
     sequence::{delimited, separated_pair, terminated, tuple},
@@ -97,6 +97,11 @@ impl<'a, S: AsRef<str> + Ord + Clone> Iterator for ParamsIter<'a, S> {
                 } else if c == 'n' && escaped {
                     escaped = false;
                     trimmed.push('\n');
+                } else if c != '"' && c != ']' && c != '\\' && escaped {
+                    // If the character following the escape isn't a \, " or ] we treat it like an normal unescaped character.
+                    escaped = false;
+                    trimmed.push('\\');
+                    trimmed.push(c);
                 } else {
                     escaped = false;
                     trimmed.push(c);
@@ -115,11 +120,7 @@ fn param_value(input: &str) -> IResult<&str, &str> {
         map(tag(r#""""#), |_| ""),
         delimited(
             tag("\""),
-            escaped(
-                take_while1(|c: char| c != '\\' && c != '"'),
-                '\\',
-                one_of(r#""n\]"#),
-            ),
+            escaped(take_while1(|c: char| c != '\\' && c != '"'), '\\', anychar),
             tag("\""),
         ),
     ))(input)
@@ -190,86 +191,86 @@ pub(crate) fn structured_data_optional(
     }
 }
 
-#[test]
-fn parse_param_value() {
-    assert_eq!(
-        param_value("\"Some \\\"lovely\\\" string\"").unwrap(),
-        ("", "Some \\\"lovely\\\" string")
-    );
-}
-
-#[test]
-fn parse_empty_param_value() {
-    assert_eq!(param_value(r#""""#).unwrap(), ("", ""));
-}
-
-#[test]
-fn parse_structured_data() {
-    assert_eq!(
-        structured_datum_strict(
-            "[exampleSDID@32473 iut=\"3\" eventSource=\"Application\" eventID=\"1011\"]"
-        )
-        .unwrap(),
-        (
-            "",
-            Some(StructuredElement {
-                id: "exampleSDID@32473",
-                params: vec![
-                    ("iut", "3"),
-                    ("eventSource", "Application"),
-                    ("eventID", "1011"),
-                ]
-            })
-        )
-    );
-}
-
-#[test]
-fn parse_structured_data_no_values() {
-    assert_eq!(
-        structured_datum(false)("[exampleSDID@32473]").unwrap(),
-        (
-            "",
-            Some(StructuredElement {
-                id: "exampleSDID@32473",
-                params: vec![]
-            })
-        )
-    );
-}
-
-#[test]
-fn parse_structured_data_with_space() {
-    assert_eq!(
-        structured_datum(false)(
-            "[exampleSDID@32473 iut=\"3\" eventSource= \"Application\" eventID=\"1011\"]"
-        )
-        .unwrap(),
-        (
-            "",
-            Some(StructuredElement {
-                id: "exampleSDID@32473",
-                params: vec![
-                    ("iut", "3"),
-                    ("eventSource", "Application"),
-                    ("eventID", "1011"),
-                ]
-            })
-        )
-    );
-}
-
-#[test]
-fn parse_invalid_structured_data() {
-    assert_eq!(
-        structured_datum(true)("[exampleSDID@32473 iut=]"),
-        Ok(("", None))
-    );
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_param_value() {
+        assert_eq!(
+            param_value("\"Some \\\"lovely\\\" string\"").unwrap(),
+            ("", "Some \\\"lovely\\\" string")
+        );
+    }
+
+    #[test]
+    fn parse_empty_param_value() {
+        assert_eq!(param_value(r#""""#).unwrap(), ("", ""));
+    }
+
+    #[test]
+    fn parse_structured_data() {
+        assert_eq!(
+            structured_datum_strict(
+                "[exampleSDID@32473 iut=\"3\" eventSource=\"Application\" eventID=\"1011\"]"
+            )
+            .unwrap(),
+            (
+                "",
+                Some(StructuredElement {
+                    id: "exampleSDID@32473",
+                    params: vec![
+                        ("iut", "3"),
+                        ("eventSource", "Application"),
+                        ("eventID", "1011"),
+                    ]
+                })
+            )
+        );
+    }
+
+    #[test]
+    fn parse_structured_data_no_values() {
+        assert_eq!(
+            structured_datum(false)("[exampleSDID@32473]").unwrap(),
+            (
+                "",
+                Some(StructuredElement {
+                    id: "exampleSDID@32473",
+                    params: vec![]
+                })
+            )
+        );
+    }
+
+    #[test]
+    fn parse_structured_data_with_space() {
+        assert_eq!(
+            structured_datum(false)(
+                "[exampleSDID@32473 iut=\"3\" eventSource= \"Application\" eventID=\"1011\"]"
+            )
+            .unwrap(),
+            (
+                "",
+                Some(StructuredElement {
+                    id: "exampleSDID@32473",
+                    params: vec![
+                        ("iut", "3"),
+                        ("eventSource", "Application"),
+                        ("eventID", "1011"),
+                    ]
+                })
+            )
+        );
+    }
+
+    #[test]
+    fn parse_invalid_structured_data() {
+        assert_eq!(
+            structured_datum(true)("[exampleSDID@32473 iut=]"),
+            Ok(("", None))
+        );
+    }
 
     #[test]
     fn parse_multiple_structured_data() {
@@ -351,7 +352,7 @@ mod tests {
     #[test]
     fn params_remove_escapes() {
         let data = structured_data(
-            r#"[id aa="hullo \"there\"" bb="let's \\\\do this\\\\" cc="hello [bye\]" dd="hello\nbye"]"#,
+            r#"[id aa="hullo \"there\"" bb="let's \\\\do this\\\\" cc="hello [bye\]" dd="hello\nbye" ee="not \esc\aped"]"#,
         )
         .unwrap();
         let params = data.1[0].params().collect::<Vec<_>>();
@@ -367,8 +368,18 @@ mod tests {
                     r#"hello
 bye"#
                         .to_string(),
-                )
+                ),
+                (&"ee", r#"not \esc\aped"#.to_string())
             ]
         );
+    }
+
+    #[test]
+    fn sd_param_escapes() {
+        let (_, value) = param_value(r#""Here are some escaped characters -> \"\\\]""#).unwrap();
+        assert_eq!(r#"Here are some escaped characters -> \"\\\]"#, value);
+
+        let (_, value) = param_value(r#""These should not be escaped -> \n\m\o""#).unwrap();
+        assert_eq!(r#"These should not be escaped -> \n\m\o"#, value);
     }
 }

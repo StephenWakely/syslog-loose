@@ -1,4 +1,4 @@
-///! Parsers for rfc 3164 specific formats.
+//! Parsers for rfc 3164 specific formats.
 use crate::{
     message::{Message, Protocol},
     parsers::{hostname, tagname},
