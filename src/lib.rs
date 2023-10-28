@@ -123,7 +123,7 @@ pub fn parse_message(input: &str, variant: Variant) -> Message<&str> {
 }
 
 ///
-/// Pase the message exactly. If it can't parse the message an Error is returned.
+/// Parse the message exactly. If it can't be parsed, an Error is returned.
 /// Note, since it is hard to locate exactly what is causing the error due to the parser trying
 /// so many different combinations, a simple hardcoded string is returned as the error message.
 ///
@@ -148,7 +148,7 @@ where
 }
 
 ///
-/// Pase the message exactly. If it can't parse the message an Error is returned.
+/// Parse the message exactly. If it can't be parsed, an Error is returned.
 /// Note, since it is hard to locate exactly what is causing the error due to the parser trying
 /// so many different combinations, a simple hardcoded string is returned as the error message.
 ///
