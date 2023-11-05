@@ -55,15 +55,31 @@ pub(crate) fn msgid(input: &str) -> IResult<&str, Option<&str>> {
     optional(input, false)
 }
 
-#[test]
-fn parse_optional_exclamations() {
-    assert_eq!(optional("!!!", false), Ok(("", Some("!!!"))));
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn appname_can_have_colons() {
-    assert_eq!(
-        appname("OX-XXX-CONTEUDO:rpd"),
-        Ok(("", Some("OX-XXX-CONTEUDO:rpd")))
-    );
+    #[test]
+    fn parse_optional_exclamations() {
+        assert_eq!(optional("!!!", false), Ok(("", Some("!!!"))));
+    }
+
+    #[test]
+    fn appname_can_have_colons() {
+        assert_eq!(
+            appname("OX-XXX-CONTEUDO:rpd"),
+            Ok(("", Some("OX-XXX-CONTEUDO:rpd")))
+        );
+    }
+
+    #[test]
+    fn parse_hostname() {
+        assert_eq!(hostname("zork "), Ok((" ", Some("zork"))));
+        assert_eq!(hostname("192.168.0.1 "), Ok((" ", Some("192.168.0.1"))));
+        assert_eq!(hostname("::13.1.68.3 "), Ok((" ", Some("::13.1.68.3"))));
+        assert_eq!(
+            hostname("2001:0db8:85a3:0000:0000:8a2e:0370:7334 "),
+            Ok((" ", Some("2001:0db8:85a3:0000:0000:8a2e:0370:7334")))
+        );
+    }
 }
