@@ -16,7 +16,7 @@ nom = "7.1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 
 [dev-dependencies]
-chrono-tz = "0.5"
+chrono-tz = "0.8"
 criterion = "0.5.1"
 criterion-cycles-per-byte = "0.1.2"
 quickcheck = "1.0.3"
