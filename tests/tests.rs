@@ -822,3 +822,55 @@ fn parse_invalid_date() {
     let raw = r#"<134> Feb 29 14:07:19 myhostname sshd - - - this is my message"#;
     assert!(parse_message_with_year_exact(raw, non_leapyear, Variant::Either).is_err());
 }
+
+#[test]
+fn parse_ipv4_hostname() {
+    let msg = "<34>1 2003-10-11T22:14:15.003Z 42.52.1.1 su - ID47 - bananas and peas";
+    assert_eq!(
+        Message {
+            facility: Some(SyslogFacility::LOG_AUTH),
+            severity: Some(SyslogSeverity::SEV_CRIT),
+            timestamp: Some(
+                FixedOffset::west_opt(0)
+                    .unwrap()
+                    .with_ymd_and_hms(2003, 10, 11, 22, 14, 15)
+                    .unwrap()
+                    + Duration::milliseconds(3)
+            ),
+            hostname: Some("42.52.1.1"),
+            appname: Some("su"),
+            procid: None,
+            msgid: Some("ID47"),
+            protocol: Protocol::RFC5424(1),
+            structured_data: vec![],
+            msg: "bananas and peas",
+        },
+        parse_message(msg, Variant::RFC5424)
+    )
+}
+
+#[test]
+fn parse_ipv6_hostname() {
+    let msg = "<34>1 2003-10-11T22:14:15.003Z ::FFFF:129.144.52.38 su - ID47 - bananas and peas";
+    assert_eq!(
+        Message {
+            facility: Some(SyslogFacility::LOG_AUTH),
+            severity: Some(SyslogSeverity::SEV_CRIT),
+            timestamp: Some(
+                FixedOffset::west_opt(0)
+                    .unwrap()
+                    .with_ymd_and_hms(2003, 10, 11, 22, 14, 15)
+                    .unwrap()
+                    + Duration::milliseconds(3)
+            ),
+            hostname: Some("::FFFF:129.144.52.38"),
+            appname: Some("su"),
+            procid: None,
+            msgid: Some("ID47"),
+            protocol: Protocol::RFC5424(1),
+            structured_data: vec![],
+            msg: "bananas and peas",
+        },
+        parse_message(msg, Variant::RFC5424)
+    )
+}

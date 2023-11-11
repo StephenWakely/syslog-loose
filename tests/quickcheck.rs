@@ -4,6 +4,8 @@ extern crate quickcheck_macros;
 
 mod non_empty_string;
 
+use std::net::{Ipv4Addr, Ipv6Addr};
+
 use chrono::prelude::*;
 use non_empty_string::{
     AppNameString, ArbitraryString, HostNameString, NameString, NoColonString, ProcIdString,
@@ -73,6 +75,12 @@ impl Arbitrary for Wrapper<Message<String>> {
             ),
         };
 
+        let hostname = match u8::arbitrary(g) % 3 {
+            0 => gen_str::<HostNameString>(g),
+            1 => Some(Ipv4Addr::arbitrary(g).to_string()),
+            _ => Some(Ipv6Addr::arbitrary(g).to_string()),
+        };
+
         // Timestamp seconds are i64 in chrono but the parse function will panic
         // if `nsecs` is out of range. This happens when `nsecs` is equivalent
         // to a number of days greater than the `i32::MAX`. If we limit `secs`
@@ -82,7 +90,7 @@ impl Arbitrary for Wrapper<Message<String>> {
             facility,
             severity,
             timestamp: Some(Utc.timestamp_opt(secs as i64, 0).unwrap().into()),
-            hostname: gen_str::<HostNameString>(g),
+            hostname,
             appname,
             procid,
             msgid,
