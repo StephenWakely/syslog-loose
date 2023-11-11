@@ -1,7 +1,10 @@
 //! Parsers shared by both protocols.
 use nom::{
-    bytes::complete::take_while1, character::complete::digit1, combinator::map,
-    combinator::map_res, IResult,
+    bytes::complete::take_while1,
+    character::complete::digit1,
+    combinator::map_res,
+    error::{make_error, ErrorKind},
+    Err, IResult,
 };
 use std::str::FromStr;
 
@@ -14,45 +17,48 @@ where
 
 /// Parse either a string up to white space or a ':'.
 /// If the string is '-' this is taken to be an empty value.
-fn optional(input: &str, has_colons: bool) -> IResult<&str, Option<&str>> {
-    map(
-        // Note we need to use the ':' as a separator between the 3164 headers and the message.
-        // So the header fields can't use them. Need to be aware of this to check
-        // if this will be an issue.
-        take_while1(|c: char| !c.is_whitespace() && (has_colons || c != ':')),
-        |value: &str| {
-            if value == "-" || value.is_empty() {
-                None
-            } else {
-                Some(value)
-            }
-        },
-    )(input)
+fn optional(input: &str) -> IResult<&str, Option<&str>> {
+    let (remaining, value) = take_while1(|c: char| !c.is_whitespace())(input)?;
+
+    if value.trim() == ":" {
+        // A colon by itself indicates we are at the separator between headers and message.
+        Err(Err::Error(make_error(input, ErrorKind::Fail)))
+    } else if value.ends_with(':') {
+        // If the field ends with a colon, the colon should be treated as the separator between
+        // the headers and the message, we return the field but leave the separator.
+        let split = value.len() - 1;
+        Ok((&input[split..], Some(&value[0..split])))
+    } else if value == "-" || value.is_empty() {
+        // The field is just empty.
+        Ok((remaining, None))
+    } else {
+        Ok((remaining, Some(value)))
+    }
 }
 
 /// Parse the host name or ip address.
 pub(crate) fn hostname(input: &str) -> IResult<&str, Option<&str>> {
-    optional(input, false)
+    optional(input)
 }
 
 // Parse the tagname
 pub(crate) fn tagname(input: &str) -> IResult<&str, Option<&str>> {
-    optional(input, false)
+    optional(input)
 }
 
 /// Parse the app name
 pub(crate) fn appname(input: &str) -> IResult<&str, Option<&str>> {
-    optional(input, true)
+    optional(input)
 }
 
 /// Parse the Process Id
 pub(crate) fn procid(input: &str) -> IResult<&str, Option<&str>> {
-    optional(input, false)
+    optional(input)
 }
 
 /// Parse the Message Id
 pub(crate) fn msgid(input: &str) -> IResult<&str, Option<&str>> {
-    optional(input, false)
+    optional(input)
 }
 
 #[cfg(test)]
@@ -61,7 +67,7 @@ mod tests {
 
     #[test]
     fn parse_optional_exclamations() {
-        assert_eq!(optional("!!!", false), Ok(("", Some("!!!"))));
+        assert_eq!(optional("!!!"), Ok(("", Some("!!!"))));
     }
 
     #[test]
@@ -81,5 +87,10 @@ mod tests {
             hostname("2001:0db8:85a3:0000:0000:8a2e:0370:7334 "),
             Ok((" ", Some("2001:0db8:85a3:0000:0000:8a2e:0370:7334")))
         );
+    }
+
+    #[test]
+    fn trailing_colon() {
+        assert_eq!(hostname("zork: "), Ok((": ", Some("zork"))))
     }
 }
