@@ -1,6 +1,6 @@
 [package]
 name = "syslog_loose"
-version = "0.19.0"
+version = "0.20.0"
 authors = ["Stephen Wakely <fungus.humungus@gmail.com>"]
 description = "A loose parser for syslog messages."
 license = "MIT"
