@@ -824,6 +824,32 @@ fn parse_invalid_date() {
 }
 
 #[test]
+fn parse_vrl() {
+    let msg = "<13>Feb 13 20:07:26 74794bfb6795 root[8539]:syslog message";
+
+    assert_eq!(
+        Message {
+            facility: Some(SyslogFacility::LOG_USER),
+            severity: Some(SyslogSeverity::SEV_NOTICE),
+            timestamp: Some(
+                FixedOffset::west_opt(0)
+                    .unwrap()
+                    .with_ymd_and_hms(2020, 2, 13, 20, 07, 26)
+                    .unwrap()
+            ),
+            hostname: Some("74794bfb6795"),
+            appname: Some("root"),
+            procid: Some(ProcId::PID(8539)),
+            msgid: None,
+            protocol: Protocol::RFC3164,
+            structured_data: vec![],
+            msg: "syslog message",
+        },
+        parse_message_with_year(msg, with_year, Variant::Either)
+    )
+}
+
+#[test]
 fn parse_ipv4_hostname() {
     let msg = "<34>1 2003-10-11T22:14:15.003Z 42.52.1.1 su - ID47 - bananas and peas";
     assert_eq!(
