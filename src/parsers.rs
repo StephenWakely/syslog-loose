@@ -17,8 +17,9 @@ where
 
 /// Parse either a string up to white space or a ':'.
 /// If the string is '-' this is taken to be an empty value.
-fn optional(input: &str) -> IResult<&str, Option<&str>> {
-    let (remaining, value) = take_while1(|c: char| !c.is_whitespace())(input)?;
+fn optional(input: &str, has_colons: bool) -> IResult<&str, Option<&str>> {
+    let (remaining, value) =
+        take_while1(|c: char| !c.is_whitespace() && (has_colons || c != ':'))(input)?;
 
     if value.trim() == ":" {
         // A colon by itself indicates we are at the separator between headers and message.
@@ -38,27 +39,27 @@ fn optional(input: &str) -> IResult<&str, Option<&str>> {
 
 /// Parse the host name or ip address.
 pub(crate) fn hostname(input: &str) -> IResult<&str, Option<&str>> {
-    optional(input)
+    optional(input, true)
 }
 
 // Parse the tagname
 pub(crate) fn tagname(input: &str) -> IResult<&str, Option<&str>> {
-    optional(input)
+    optional(input, false)
 }
 
 /// Parse the app name
 pub(crate) fn appname(input: &str) -> IResult<&str, Option<&str>> {
-    optional(input)
+    optional(input, true)
 }
 
 /// Parse the Process Id
 pub(crate) fn procid(input: &str) -> IResult<&str, Option<&str>> {
-    optional(input)
+    optional(input, true)
 }
 
 /// Parse the Message Id
 pub(crate) fn msgid(input: &str) -> IResult<&str, Option<&str>> {
-    optional(input)
+    optional(input, true)
 }
 
 #[cfg(test)]
@@ -67,7 +68,7 @@ mod tests {
 
     #[test]
     fn parse_optional_exclamations() {
-        assert_eq!(optional("!!!"), Ok(("", Some("!!!"))));
+        assert_eq!(optional("!!!", true), Ok(("", Some("!!!"))));
     }
 
     #[test]
