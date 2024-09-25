@@ -326,7 +326,7 @@ mod tests {
     fn parse_3164_no_structured_data() {
         assert_eq!(
             parse::<_, Local>(
-                "2024-09-19T15:39:45.469435+02:00 node1234 slurmstepd[548422]: [65684352.batch] done with job",
+                "2024-09-19T15:39:45+02:00 node1234 slurmstepd[548422]: [65684352.batch] done with job",
                 |_| { 2019 },
                 None
             )
@@ -338,9 +338,9 @@ mod tests {
                     facility: None,
                     severity: None,
                     timestamp: Some(
-                        FixedOffset::west_opt(0)
+                        FixedOffset::west_opt(-2 * 3600)
                             .unwrap()
-                            .with_ymd_and_hms(2024, 9, 19, 17, 39, 45)
+                            .with_ymd_and_hms(2024, 9, 19, 15, 39, 45)
                             .unwrap()
                     ),
                     hostname: Some("node1234"),
