@@ -323,6 +323,38 @@ mod tests {
     }
 
     #[test]
+    fn parse_3164_no_structured_data() {
+        assert_eq!(
+            parse::<_, Local>(
+                "2024-09-19T15:39:45.469435+02:00 node1234 slurmstepd[548422]: [65684352.batch] done with job",
+                |_| { 2019 },
+                None
+            )
+            .unwrap(),
+            (
+                "",
+                Message {
+                    protocol: Protocol::RFC3164,
+                    facility: None,
+                    severity: None,
+                    timestamp: Some(
+                        FixedOffset::west_opt(0)
+                            .unwrap()
+                            .with_ymd_and_hms(2024, 9, 19, 17, 39, 45)
+                            .unwrap()
+                    ),
+                    hostname: Some("node1234"),
+                    appname: Some("slurmstepd"),
+                    procid: Some(ProcId::PID(548422)),
+                    msgid: None,
+                    structured_data: vec![],
+                    msg: "[65684352.batch] done with job",
+                }
+            )
+        );
+    }
+
+    #[test]
     fn parse_3164_3339_datetime_in_message() {
         assert_eq!(
             parse::<_, FixedOffset>(
