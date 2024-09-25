@@ -3,7 +3,6 @@ use crate::{
     message::{Message, Protocol},
     parsers::{hostname, tagname},
     pri::pri,
-    structured_data::structured_data_optional,
     timestamp::{timestamp_3164, IncompleteDate},
 };
 use chrono::prelude::*;
@@ -82,6 +81,8 @@ where
         )),
         |(pri, _, timestamp, field1, field2, _, _, _, msg)| {
             let (host, appname, pid) = resolve_host_and_tag(field1, field2);
+
+            println!("XXX: parsing RFC3164 style message, msg is {}", msg);
 
             Message {
                 protocol: Protocol::RFC3164,
@@ -327,7 +328,7 @@ mod tests {
         assert_eq!(
             parse::<_, Local>(
                 "2024-09-19T15:39:45+02:00 node1234 slurmstepd[548422]: [65684352.batch] done with job",
-                |_| { 2019 },
+                |_| { 2024 },
                 None
             )
             .unwrap(),
