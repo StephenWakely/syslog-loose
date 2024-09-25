@@ -78,11 +78,9 @@ where
             opt(space0),
             opt(tag(":")),
             opt(space0),
-            opt(structured_data_optional(false)),
-            opt(space0),
             rest,
         )),
-        |(pri, _, timestamp, field1, field2, _, _, _, structured_data, _, msg)| {
+        |(pri, _, timestamp, field1, field2, _, _, _, msg)| {
             let (host, appname, pid) = resolve_host_and_tag(field1, field2);
 
             Message {
@@ -94,7 +92,7 @@ where
                 appname,
                 procid: pid.map(|p| p.into()),
                 msgid: None,
-                structured_data: structured_data.unwrap_or_default(),
+                structured_data: vec![],
                 msg,
             }
         },
