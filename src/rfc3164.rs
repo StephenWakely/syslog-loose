@@ -82,8 +82,6 @@ where
         |(pri, _, timestamp, field1, field2, _, _, _, msg)| {
             let (host, appname, pid) = resolve_host_and_tag(field1, field2);
 
-            println!("XXX: parsing RFC3164 style message, msg is {}", msg);
-
             Message {
                 protocol: Protocol::RFC3164,
                 facility: pri.0,
