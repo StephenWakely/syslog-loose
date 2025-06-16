@@ -4,7 +4,7 @@ use nom::{
     character::complete::digit1,
     combinator::map_res,
     error::{make_error, ErrorKind},
-    Err, IResult,
+    Err, IResult, Parser as _,
 };
 use std::str::FromStr;
 
@@ -12,7 +12,7 @@ pub(crate) fn digits<T>(input: &str) -> IResult<&str, T>
 where
     T: FromStr,
 {
-    map_res(digit1, FromStr::from_str)(input)
+    map_res(digit1, FromStr::from_str).parse(input)
 }
 
 /// Parse either a string up to white space or a ':'.

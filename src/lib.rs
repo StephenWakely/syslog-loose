@@ -13,10 +13,10 @@ mod structured_data;
 mod timestamp;
 
 use chrono::prelude::*;
-use nom::{branch::alt, IResult};
+use nom::{IResult, Parser as _, branch::alt};
 
 pub use message::{Message, Protocol};
-pub use pri::{decompose_pri, SyslogFacility, SyslogSeverity};
+pub use pri::{SyslogFacility, SyslogSeverity, decompose_pri};
 pub use procid::ProcId;
 pub use structured_data::StructuredElement;
 pub use timestamp::IncompleteDate;
@@ -44,7 +44,7 @@ where
 {
     match variant {
         Variant::Either => {
-            alt((rfc5424::parse, |input| rfc3164::parse(input, get_year, tz)))(input.trim())
+            alt((rfc5424::parse, |input| rfc3164::parse(input, get_year, tz))).parse(input.trim())
         }
         Variant::RFC3164 => rfc3164::parse(input.trim(), get_year, tz),
         Variant::RFC5424 => rfc5424::parse(input.trim()),

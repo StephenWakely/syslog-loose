@@ -1,5 +1,5 @@
 use crate::parsers::digits;
-use nom::{bytes::complete::tag, combinator::map, combinator::opt, sequence::delimited, IResult};
+use nom::{bytes::complete::tag, combinator::{map, opt}, sequence::delimited, IResult, Parser as _};
 
 // Taken from https://github.com/Roguelazer/rust-syslog-rfc5424/blob/af76363081314f91433e014c76fd834acef756d5/src/facility.rs
 // Many thanks.
@@ -174,7 +174,7 @@ pub(crate) fn pri(input: &str) -> IResult<&str, (Option<SyslogFacility>, Option<
     map(
         opt(delimited(tag("<"), map(digits, decompose_pri), tag(">"))),
         |pri| pri.unwrap_or((None, None)),
-    )(input)
+    ).parse(input)
 }
 
 #[test]
