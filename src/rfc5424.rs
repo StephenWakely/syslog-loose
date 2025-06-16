@@ -7,7 +7,9 @@ use crate::{
     timestamp::timestamp_3339,
 };
 use nom::{
-    character::complete::{space0, space1}, combinator::{map, rest}, IResult, Parser as _
+    IResult, Parser as _,
+    character::complete::{space0, space1},
+    combinator::{map, rest},
 };
 
 /// Parse the version number - just a simple integer.
@@ -65,7 +67,8 @@ pub(crate) fn parse(input: &str) -> IResult<&str, Message<&str>> {
             structured_data,
             msg,
         },
-    ).parse(input)
+    )
+    .parse(input)
 }
 
 #[cfg(test)]

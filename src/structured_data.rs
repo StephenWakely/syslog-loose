@@ -1,10 +1,10 @@
 use nom::{
-    IResult, Mode, Parser,
+    IResult, Parser,
     branch::alt,
     bytes::complete::{escaped, tag, take_till1, take_until, take_while1},
     character::complete::{anychar, space0},
     combinator::map,
-    error::{self, ParseError},
+    error,
     multi::{many1, separated_list0},
     sequence::{delimited, separated_pair, terminated},
 };
@@ -202,14 +202,14 @@ impl StructuredDatumParser {
             self.structured_datum_strict(input)
         }?;
 
-	// 3164 often has items that look like structured data, but isn't.
-	// Generally, stuff between square brackets that doesn't follow a
-	// [id key=value] pattern. This would get parsed as an empty StructuredElement
-	// with no parameters. In this case, we want to return an error instead
-	// so that it is treated as invalid structured data and incorporated into the
-	// message.
-	// In 5424 structured data without any parameters is perfectly valid, so 
-	// needs it returned as a success.
+        // 3164 often has items that look like structured data, but isn't.
+        // Generally, stuff between square brackets that doesn't follow a
+        // [id key=value] pattern. This would get parsed as an empty StructuredElement
+        // with no parameters. In this case, we want to return an error instead
+        // so that it is treated as invalid structured data and incorporated into the
+        // message.
+        // In 5424 structured data without any parameters is perfectly valid, so
+        // needs it returned as a success.
         if !self.allow_empty
             && result
                 .as_ref()

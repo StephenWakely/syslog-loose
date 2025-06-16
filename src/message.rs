@@ -1,4 +1,4 @@
-use crate::pri::{compose_pri, SyslogFacility, SyslogSeverity};
+use crate::pri::{SyslogFacility, SyslogSeverity, compose_pri};
 use crate::procid::ProcId;
 use crate::structured_data;
 use chrono::prelude::*;

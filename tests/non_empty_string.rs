@@ -1,10 +1,6 @@
 use quickcheck::{Arbitrary, Gen};
 use std::num::NonZeroU8;
 
-trait FilterChars {
-    fn valid(c: char) -> bool;
-}
-
 fn gen_string<F>(g: &mut Gen, valid_char: F) -> String
 where
     F: Fn(char) -> bool,

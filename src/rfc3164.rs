@@ -8,7 +8,11 @@ use crate::{
 };
 use chrono::prelude::*;
 use nom::{
-    bytes::complete::{is_not, tag, take_while}, character::complete::space0, combinator::{map, opt, rest}, sequence::{delimited, preceded}, IResult, Parser as _
+    IResult, Parser as _,
+    bytes::complete::{is_not, tag, take_while},
+    character::complete::space0,
+    combinator::{map, opt, rest},
+    sequence::{delimited, preceded},
 };
 
 // Parse the tag - a process name followed by a pid in [].
@@ -95,7 +99,8 @@ where
                 msg,
             }
         },
-    ).parse(input)
+    )
+    .parse(input)
 }
 
 #[test]
