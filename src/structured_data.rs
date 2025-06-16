@@ -138,20 +138,6 @@ fn param(input: &str) -> IResult<&str, (&str, &str)> {
     .parse(input)
 }
 
-/// Parse a single structured data record.
-fn structured_datum(
-    allow_failure: bool,
-    allow_empty: bool,
-) -> impl FnMut(&str) -> IResult<&str, Option<StructuredElement<&str>>> {
-    move |input| {
-        StructuredDatumParser {
-            allow_failure,
-            allow_empty,
-        }
-        .parse(input)
-    }
-}
-
 struct StructuredDatumParser {
     allow_failure: bool,
     allow_empty: bool,
@@ -213,7 +199,7 @@ impl StructuredDatumParser {
         if !self.allow_empty
             && result
                 .as_ref()
-                .map_or(false, |element| element.params.len() == 0)
+                .is_some_and(|element| element.params.is_empty())
         {
             Err(nom::Err::Error(error::Error::new(
                 input,
@@ -226,15 +212,21 @@ impl StructuredDatumParser {
 }
 
 /// Parse multiple structured data elements.
-fn parse_structured_data<'a>(
+fn parse_structured_data(
     allow_failure: bool,
     allow_empty: bool,
-    input: &'a str,
-) -> IResult<&'a str, Vec<StructuredElement<&'a str>>> {
+    input: &str,
+) -> IResult<&str, Vec<StructuredElement<&str>>> {
     alt((
         map(tag("-"), |_| vec![]),
         map(
-            many1(structured_datum(allow_failure, allow_empty)),
+            many1(|input| {
+                StructuredDatumParser {
+                    allow_failure,
+                    allow_empty,
+                }
+                .parse(input)
+            }),
             |items| items.iter().filter_map(|item| item.clone()).collect(),
         ),
     ))
@@ -294,7 +286,12 @@ mod tests {
     #[test]
     fn parse_structured_data_no_values() {
         assert_eq!(
-            structured_datum(false, true)("[exampleSDID@32473]").unwrap(),
+            StructuredDatumParser {
+                allow_failure: false,
+                allow_empty: true,
+            }
+            .parse("[exampleSDID@32473]")
+            .unwrap(),
             (
                 "",
                 Some(StructuredElement {
@@ -308,9 +305,11 @@ mod tests {
     #[test]
     fn parse_structured_data_with_space() {
         assert_eq!(
-            structured_datum(false, true)(
-                "[exampleSDID@32473 iut=\"3\" eventSource= \"Application\" eventID=\"1011\"]"
-            )
+            StructuredDatumParser {
+                allow_empty: false,
+                allow_failure: true,
+            }
+            .parse("[exampleSDID@32473 iut=\"3\" eventSource= \"Application\" eventID=\"1011\"]")
             .unwrap(),
             (
                 "",
@@ -329,7 +328,11 @@ mod tests {
     #[test]
     fn parse_invalid_structured_data() {
         assert_eq!(
-            structured_datum(true, true)("[exampleSDID@32473 iut=]"),
+            StructuredDatumParser {
+                allow_empty: true,
+                allow_failure: true,
+            }
+            .parse("[exampleSDID@32473 iut=]"),
             Ok(("", None))
         );
     }
@@ -439,7 +442,11 @@ bye"#
     #[test]
     fn parse_empty_structured_data() {
         assert_eq!(
-            structured_datum(true, true)("[WAN_LOCAL-default-D]"),
+            StructuredDatumParser {
+                allow_failure: true,
+                allow_empty: true,
+            }
+            .parse("[WAN_LOCAL-default-D]"),
             Ok((
                 "",
                 Some(StructuredElement {
@@ -449,6 +456,13 @@ bye"#
             ))
         );
 
-        assert!(structured_datum(true, false)("[WAN_LOCAL-default-D]").is_err());
+        assert!(
+            StructuredDatumParser {
+                allow_failure: true,
+                allow_empty: false,
+            }
+            .parse("[WAN_LOCAL-default-D]")
+            .is_err()
+        );
     }
 }

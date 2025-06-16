@@ -117,9 +117,9 @@ where
 /// # Arguments
 ///
 /// * get_year - a function that is called if the parsed message contains a date with no year.
-///              the function takes a (month, date, hour, minute, second) tuple and should return the year to use.
+///   the function takes a (month, date, hour, minute, second) tuple and should return the year to use.
 /// * tz - An optional timezone.
-///        If None is specified and the parsed date doesn't specify a timezone the date is parsed in time local time.
+///   If None is specified and the parsed date doesn't specify a timezone the date is parsed in time local time.
 ///
 pub(crate) fn timestamp_3164<F, Tz: TimeZone + Copy>(
     get_year: F,
