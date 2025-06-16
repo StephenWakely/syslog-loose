@@ -1,10 +1,10 @@
 //! Parsers shared by both protocols.
 use nom::{
+    Err, IResult, Parser as _,
     bytes::complete::take_while1,
     character::complete::digit1,
     combinator::map_res,
-    error::{make_error, ErrorKind},
-    Err, IResult, Parser as _,
+    error::{ErrorKind, make_error},
 };
 use std::str::FromStr;
 

@@ -1,7 +1,12 @@
 use crate::parsers::digits;
 use chrono::prelude::*;
 use nom::{
-    branch::alt, bytes::complete::{tag, take, take_until}, character::complete::space1, combinator::{map, map_res, opt}, error::{self, ErrorKind}, IResult, Parser as _
+    IResult, Parser as _,
+    branch::alt,
+    bytes::complete::{tag, take, take_until},
+    character::complete::space1,
+    combinator::{map, map_res, opt},
+    error::{self, ErrorKind},
 };
 
 /// The timestamp for 5424 messages yyyy-mm-ddThh:mm:ss.mmmmZ
@@ -47,7 +52,8 @@ fn timestamp_3164_no_year(input: &str) -> IResult<&str, IncompleteDate> {
             opt(tag(":")),
         ),
         |(month, _, date, _, hour, _, minute, _, seconds, _)| (month, date, hour, minute, seconds),
-    ).parse(input)
+    )
+    .parse(input)
 }
 
 /// Timestamp including year. MMM DD YYYY HH:MM:SS
@@ -73,7 +79,8 @@ fn timestamp_3164_with_year(input: &str) -> IResult<&str, NaiveDateTime> {
                 .and_hms_opt(hour, minute, seconds)
                 .ok_or_else(|| error::Error::new(input, ErrorKind::Fail))
         },
-    ).parse(input)
+    )
+    .parse(input)
 }
 
 /// Makes a timestamp given all the fields of the date less the year
@@ -110,9 +117,9 @@ where
 /// # Arguments
 ///
 /// * get_year - a function that is called if the parsed message contains a date with no year.
-///              the function takes a (month, date, hour, minute, second) tuple and should return the year to use.
+///   the function takes a (month, date, hour, minute, second) tuple and should return the year to use.
 /// * tz - An optional timezone.
-///        If None is specified and the parsed date doesn't specify a timezone the date is parsed in time local time.
+///   If None is specified and the parsed date doesn't specify a timezone the date is parsed in time local time.
 ///
 pub(crate) fn timestamp_3164<F, Tz: TimeZone + Copy>(
     get_year: F,
@@ -129,7 +136,7 @@ where
             map(timestamp_3164_with_year, |naive_date| match tz {
                 Some(tz) => {
                     let offset = tz.offset_from_utc_datetime(&naive_date).fix();
-                    DateTime::<FixedOffset>::from_utc(naive_date, offset)
+                    DateTime::<FixedOffset>::from_naive_utc_and_offset(naive_date, offset)
                 }
                 None => match Local.from_local_datetime(&naive_date).earliest() {
                     Some(timestamp) => timestamp.into(),
@@ -137,7 +144,8 @@ where
                 },
             }),
             timestamp_3339,
-        )).parse(input)
+        ))
+        .parse(input)
     }
 }
 

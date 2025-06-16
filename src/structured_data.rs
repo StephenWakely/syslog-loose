@@ -1,5 +1,12 @@
 use nom::{
-    branch::alt, bytes::complete::{escaped, tag, take_till1, take_until, take_while1}, character::complete::{anychar, space0}, combinator::map, multi::{many1, separated_list0}, sequence::{delimited, separated_pair, terminated}, IResult, Parser as _
+    IResult, Parser,
+    branch::alt,
+    bytes::complete::{escaped, tag, take_till1, take_until, take_while1},
+    character::complete::{anychar, space0},
+    combinator::map,
+    error,
+    multi::{many1, separated_list0},
+    sequence::{delimited, separated_pair, terminated},
 };
 use std::fmt;
 
@@ -117,7 +124,8 @@ fn param_value(input: &str) -> IResult<&str, &str> {
             escaped(take_while1(|c: char| c != '\\' && c != '"'), '\\', anychar),
             tag("\""),
         ),
-    )).parse(input)
+    ))
+    .parse(input)
 }
 
 /// Parse a param name="value"
@@ -126,63 +134,113 @@ fn param(input: &str) -> IResult<&str, (&str, &str)> {
         take_till1(|c: char| c == ']' || c == '='),
         terminated(tag("="), space0),
         param_value,
-    ).parse(input)
+    )
+    .parse(input)
 }
 
-/// Parse a single structured data record.
-/// [exampleSDID@32473 iut="3" eventSource="Application" eventID="1011"]
-fn structured_datum_strict(input: &str) -> IResult<&str, Option<StructuredElement<&str>>> {
-    delimited(
-        tag("["),
-        map(
-            (
-                take_till1(|c: char| c.is_whitespace() || c == ']' || c == '='),
-                space0,
-                separated_list0(tag(" "), param),
-            ),
-            |(id, _, params)| Some(StructuredElement { id, params }),
-        ),
-        tag("]"),
-    ).parse(input)
-}
-
-/// Parse a single structured data record allowing anything between brackets.
-fn structured_datum_permissive(input: &str) -> IResult<&str, Option<StructuredElement<&str>>> {
-    alt((
-        structured_datum_strict,
-        // If the element fails to parse, just parse it and return None.
-        delimited(tag("["), map(take_until("]"), |_| None), tag("]")),
-    )).parse(input)
-}
-
-/// Parse a single structured data record.
-fn structured_datum(
+struct StructuredDatumParser {
     allow_failure: bool,
-) -> impl FnMut(&str) -> IResult<&str, Option<StructuredElement<&str>>> {
-    if allow_failure {
-        structured_datum_permissive
-    } else {
-        structured_datum_strict
+    allow_empty: bool,
+}
+
+impl StructuredDatumParser {
+    /// Parse a single structured data record.
+    /// [exampleSDID@32473 iut="3" eventSource="Application" eventID="1011"]
+    fn structured_datum_strict<'a>(
+        &self,
+        input: &'a str,
+    ) -> IResult<&'a str, Option<StructuredElement<&'a str>>> {
+        delimited(
+            tag("["),
+            map(
+                (
+                    take_till1(|c: char| c.is_whitespace() || c == ']' || c == '='),
+                    space0,
+                    separated_list0(tag(" "), param),
+                ),
+                |(id, _, params)| Some(StructuredElement { id, params }),
+            ),
+            tag("]"),
+        )
+        .parse(input)
     }
+
+    /// Parse a single structured data record allowing anything between brackets.
+    fn structured_datum_permissive<'a>(
+        &self,
+        input: &'a str,
+    ) -> IResult<&'a str, Option<StructuredElement<&'a str>>> {
+        alt((
+            |input| self.structured_datum_strict(input),
+            // If the element fails to parse, just parse it and return None.
+            delimited(tag("["), map(take_until("]"), |_| None), tag("]")),
+        ))
+        .parse(input)
+    }
+
+    pub(crate) fn parse<'a>(
+        &mut self,
+        input: &'a str,
+    ) -> IResult<&'a str, Option<StructuredElement<&'a str>>> {
+        let (remaining, result) = if self.allow_failure {
+            self.structured_datum_permissive(input)
+        } else {
+            self.structured_datum_strict(input)
+        }?;
+
+        // 3164 often has items that look like structured data, but isn't.
+        // Generally, stuff between square brackets that doesn't follow a
+        // [id key=value] pattern. This would get parsed as an empty StructuredElement
+        // with no parameters. In this case, we want to return an error instead
+        // so that it is treated as invalid structured data and incorporated into the
+        // message.
+        // In 5424 structured data without any parameters is perfectly valid, so
+        // needs it returned as a success.
+        if !self.allow_empty
+            && result
+                .as_ref()
+                .is_some_and(|element| element.params.is_empty())
+        {
+            Err(nom::Err::Error(error::Error::new(
+                input,
+                error::ErrorKind::Fail,
+            )))
+        } else {
+            Ok((remaining, result))
+        }
+    }
+}
+
+/// Parse multiple structured data elements.
+fn parse_structured_data(
+    allow_failure: bool,
+    allow_empty: bool,
+    input: &str,
+) -> IResult<&str, Vec<StructuredElement<&str>>> {
+    alt((
+        map(tag("-"), |_| vec![]),
+        map(
+            many1(|input| {
+                StructuredDatumParser {
+                    allow_failure,
+                    allow_empty,
+                }
+                .parse(input)
+            }),
+            |items| items.iter().filter_map(|item| item.clone()).collect(),
+        ),
+    ))
+    .parse(input)
 }
 
 /// Parse multiple structured data elements.
 pub(crate) fn structured_data(input: &str) -> IResult<&str, Vec<StructuredElement<&str>>> {
-    structured_data_optional(true)(input)
+    parse_structured_data(true, true, input)
 }
 
 /// Parse multiple structured data elements.
-pub(crate) fn structured_data_optional(
-    allow_failure: bool,
-) -> impl FnMut(&str) -> IResult<&str, Vec<StructuredElement<&str>>> {
-    move |input| {
-        alt((
-            map(tag("-"), |_| vec![]),
-            map(many1(structured_datum(allow_failure)), |items| {
-                items.iter().filter_map(|item| item.clone()).collect()
-            }),
-        )).parse(input)
-    }
+pub(crate) fn structured_data_optional(input: &str) -> IResult<&str, Vec<StructuredElement<&str>>> {
+    parse_structured_data(false, false, input)
 }
 
 #[cfg(test)]
@@ -205,9 +263,11 @@ mod tests {
     #[test]
     fn parse_structured_data() {
         assert_eq!(
-            structured_datum_strict(
-                "[exampleSDID@32473 iut=\"3\" eventSource=\"Application\" eventID=\"1011\"]"
-            )
+            StructuredDatumParser {
+                allow_empty: false,
+                allow_failure: true,
+            }
+            .parse("[exampleSDID@32473 iut=\"3\" eventSource=\"Application\" eventID=\"1011\"]")
             .unwrap(),
             (
                 "",
@@ -226,7 +286,12 @@ mod tests {
     #[test]
     fn parse_structured_data_no_values() {
         assert_eq!(
-            structured_datum(false)("[exampleSDID@32473]").unwrap(),
+            StructuredDatumParser {
+                allow_failure: false,
+                allow_empty: true,
+            }
+            .parse("[exampleSDID@32473]")
+            .unwrap(),
             (
                 "",
                 Some(StructuredElement {
@@ -240,9 +305,11 @@ mod tests {
     #[test]
     fn parse_structured_data_with_space() {
         assert_eq!(
-            structured_datum(false)(
-                "[exampleSDID@32473 iut=\"3\" eventSource= \"Application\" eventID=\"1011\"]"
-            )
+            StructuredDatumParser {
+                allow_empty: false,
+                allow_failure: true,
+            }
+            .parse("[exampleSDID@32473 iut=\"3\" eventSource= \"Application\" eventID=\"1011\"]")
             .unwrap(),
             (
                 "",
@@ -261,7 +328,11 @@ mod tests {
     #[test]
     fn parse_invalid_structured_data() {
         assert_eq!(
-            structured_datum(true)("[exampleSDID@32473 iut=]"),
+            StructuredDatumParser {
+                allow_empty: true,
+                allow_failure: true,
+            }
+            .parse("[exampleSDID@32473 iut=]"),
             Ok(("", None))
         );
     }
@@ -296,17 +367,8 @@ mod tests {
     }
 
     #[test]
-    fn parse_structured_data_keep_invalid_elements() {
-        assert_eq!(
-            structured_data_optional(false)("[abc][id aa=]").unwrap(),
-            (
-                "[id aa=]",
-                vec![StructuredElement {
-                    id: "abc",
-                    params: vec![],
-                },]
-            )
-        )
+    fn parse_structured_data_dont_keep_empty_elements() {
+        assert!(structured_data_optional("[abc] message").is_err())
     }
 
     #[test]
@@ -375,5 +437,32 @@ bye"#
 
         let (_, value) = param_value(r#""These should not be escaped -> \n\m\o""#).unwrap();
         assert_eq!(r#"These should not be escaped -> \n\m\o"#, value);
+    }
+
+    #[test]
+    fn parse_empty_structured_data() {
+        assert_eq!(
+            StructuredDatumParser {
+                allow_failure: true,
+                allow_empty: true,
+            }
+            .parse("[WAN_LOCAL-default-D]"),
+            Ok((
+                "",
+                Some(StructuredElement {
+                    id: "WAN_LOCAL-default-D",
+                    params: vec![]
+                })
+            ))
+        );
+
+        assert!(
+            StructuredDatumParser {
+                allow_failure: true,
+                allow_empty: false,
+            }
+            .parse("[WAN_LOCAL-default-D]")
+            .is_err()
+        );
     }
 }
