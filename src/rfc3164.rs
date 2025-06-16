@@ -75,7 +75,7 @@ where
             opt(space0),
             opt(tag(":")),
             opt(space0),
-            opt(structured_data_optional(false)),
+            opt(structured_data_optional),
             opt(space0),
             rest,
         ),
