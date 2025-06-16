@@ -15,16 +15,21 @@ where
     map_res(digit1, FromStr::from_str).parse(input)
 }
 
+struct ParserOpts {
+    has_colons: bool,
+    has_trailing_colon: bool,
+}
+
 /// Parse either a string up to white space or a ':'.
 /// If the string is '-' this is taken to be an empty value.
-fn optional(input: &str, has_colons: bool) -> IResult<&str, Option<&str>> {
+fn optional(input: &str, opts: ParserOpts) -> IResult<&str, Option<&str>> {
     let (remaining, value) =
-        take_while1(|c: char| !c.is_whitespace() && (has_colons || c != ':'))(input)?;
+        take_while1(|c: char| !c.is_whitespace() && (opts.has_colons || c != ':'))(input)?;
 
     if value.trim() == ":" {
         // A colon by itself indicates we are at the separator between headers and message.
         Err(Err::Error(make_error(input, ErrorKind::Fail)))
-    } else if value.ends_with(':') {
+    } else if value.ends_with(':') && !opts.has_trailing_colon {
         // If the field ends with a colon, the colon should be treated as the separator between
         // the headers and the message, we return the field but leave the separator.
         let split = value.len() - 1;
@@ -39,27 +44,57 @@ fn optional(input: &str, has_colons: bool) -> IResult<&str, Option<&str>> {
 
 /// Parse the host name or ip address.
 pub(crate) fn hostname(input: &str) -> IResult<&str, Option<&str>> {
-    optional(input, true)
+    optional(
+        input,
+        ParserOpts {
+            has_colons: true,
+            has_trailing_colon: false,
+        },
+    )
 }
 
 // Parse the tagname
 pub(crate) fn tagname(input: &str) -> IResult<&str, Option<&str>> {
-    optional(input, false)
+    optional(
+        input,
+        ParserOpts {
+            has_colons: false,
+            has_trailing_colon: true,
+        },
+    )
 }
 
 /// Parse the app name
 pub(crate) fn appname(input: &str) -> IResult<&str, Option<&str>> {
-    optional(input, true)
+    optional(
+        input,
+        ParserOpts {
+            has_colons: true,
+            has_trailing_colon: true,
+        },
+    )
 }
 
 /// Parse the Process Id
 pub(crate) fn procid(input: &str) -> IResult<&str, Option<&str>> {
-    optional(input, true)
+    optional(
+        input,
+        ParserOpts {
+            has_colons: true,
+            has_trailing_colon: true,
+        },
+    )
 }
 
 /// Parse the Message Id
 pub(crate) fn msgid(input: &str) -> IResult<&str, Option<&str>> {
-    optional(input, true)
+    optional(
+        input,
+        ParserOpts {
+            has_colons: true,
+            has_trailing_colon: true,
+        },
+    )
 }
 
 #[cfg(test)]
@@ -68,7 +103,16 @@ mod tests {
 
     #[test]
     fn parse_optional_exclamations() {
-        assert_eq!(optional("!!!", true), Ok(("", Some("!!!"))));
+        assert_eq!(
+            optional(
+                "!!!",
+                ParserOpts {
+                    has_colons: true,
+                    has_trailing_colon: true,
+                }
+            ),
+            Ok(("", Some("!!!")))
+        );
     }
 
     #[test]

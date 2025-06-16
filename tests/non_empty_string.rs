@@ -33,6 +33,12 @@ macro_rules! arbitrary_string {
         #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
         pub struct $name(pub String);
 
+	impl From<&str> for $name {
+	    fn from(s: &str) -> Self {
+		$name(s.to_string())
+	    }
+	}
+
         impl ArbitraryString for $name {
             fn get_str(self) -> String {
                 let $name(value) = self;

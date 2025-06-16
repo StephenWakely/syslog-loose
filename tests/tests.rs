@@ -949,3 +949,36 @@ fn parse_3164_ubnt_iptables() {
         }
     );
 }
+
+#[test]
+fn parse_5424_f5_logs() {
+    let msg = r#"<131>1 2025-05-09T09:56:18.906539+02:00 Host-Name.network.example appname 1234 01230456:1: [F5@1234 hostname="Host-Name.network.example" errdefs_msgno="01230456:1:"] RST sent from 192.0.2.1:443 to 192.0.2.2:1176, [0xdeadbef:1010] RST from BIG-IP internal Linux host"#;
+
+    assert_eq!(
+        parse_message_with_year(msg, with_year, Variant::Either),
+        Message {
+            facility: Some(SyslogFacility::LOG_LOCAL0),
+            severity: Some(SyslogSeverity::SEV_ERR),
+            timestamp: Some(
+                FixedOffset::east_opt(2 * 3600)
+		    .unwrap()
+                    .with_ymd_and_hms(2025, 5, 9, 9, 56, 18)
+                    .unwrap()
+		    + Duration::microseconds(906539)
+            ),
+            hostname: Some("Host-Name.network.example"),
+            appname: Some("appname"),
+            procid: Some(ProcId::PID(1234)),
+            msgid: Some("01230456:1:"),
+            protocol: Protocol::RFC5424(1),
+            structured_data: vec![StructuredElement {
+                id: "F5@1234",
+                params: vec![
+                    ("hostname", "Host-Name.network.example"),
+                    ("errdefs_msgno", "01230456:1:"),
+                ]
+            }],
+            msg: "RST sent from 192.0.2.1:443 to 192.0.2.2:1176, [0xdeadbef:1010] RST from BIG-IP internal Linux host",
+        }
+    );
+}
