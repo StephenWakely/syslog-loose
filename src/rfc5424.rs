@@ -7,10 +7,7 @@ use crate::{
     timestamp::timestamp_3339,
 };
 use nom::{
-    character::complete::{space0, space1},
-    combinator::{map, rest},
-    sequence::tuple,
-    IResult,
+    character::complete::{space0, space1}, combinator::{map, rest}, IResult, Parser as _
 };
 
 /// Parse the version number - just a simple integer.
@@ -21,7 +18,7 @@ fn version(input: &str) -> IResult<&str, u32> {
 /// Parse the message as per RFC5424
 pub(crate) fn parse(input: &str) -> IResult<&str, Message<&str>> {
     map(
-        tuple((
+        (
             pri,
             version,
             space1,
@@ -38,7 +35,7 @@ pub(crate) fn parse(input: &str) -> IResult<&str, Message<&str>> {
             structured_data,
             space0,
             rest,
-        )),
+        ),
         |(
             pri,
             version,
@@ -68,14 +65,14 @@ pub(crate) fn parse(input: &str) -> IResult<&str, Message<&str>> {
             structured_data,
             msg,
         },
-    )(input)
+    ).parse(input)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::pri::{SyslogFacility, SyslogSeverity};
-    use chrono::{prelude::*, Duration};
+    use chrono::{Duration, prelude::*};
 
     #[test]
     fn parse_5424() {

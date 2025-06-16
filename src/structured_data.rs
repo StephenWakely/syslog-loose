@@ -1,11 +1,5 @@
 use nom::{
-    branch::alt,
-    bytes::complete::{escaped, tag, take_till1, take_until, take_while1},
-    character::complete::{anychar, space0},
-    combinator::map,
-    multi::{many1, separated_list0},
-    sequence::{delimited, separated_pair, terminated, tuple},
-    IResult,
+    branch::alt, bytes::complete::{escaped, tag, take_till1, take_until, take_while1}, character::complete::{anychar, space0}, combinator::map, multi::{many1, separated_list0}, sequence::{delimited, separated_pair, terminated}, IResult, Parser as _
 };
 use std::fmt;
 
@@ -123,7 +117,7 @@ fn param_value(input: &str) -> IResult<&str, &str> {
             escaped(take_while1(|c: char| c != '\\' && c != '"'), '\\', anychar),
             tag("\""),
         ),
-    ))(input)
+    )).parse(input)
 }
 
 /// Parse a param name="value"
@@ -132,7 +126,7 @@ fn param(input: &str) -> IResult<&str, (&str, &str)> {
         take_till1(|c: char| c == ']' || c == '='),
         terminated(tag("="), space0),
         param_value,
-    )(input)
+    ).parse(input)
 }
 
 /// Parse a single structured data record.
@@ -141,15 +135,15 @@ fn structured_datum_strict(input: &str) -> IResult<&str, Option<StructuredElemen
     delimited(
         tag("["),
         map(
-            tuple((
+            (
                 take_till1(|c: char| c.is_whitespace() || c == ']' || c == '='),
                 space0,
                 separated_list0(tag(" "), param),
-            )),
+            ),
             |(id, _, params)| Some(StructuredElement { id, params }),
         ),
         tag("]"),
-    )(input)
+    ).parse(input)
 }
 
 /// Parse a single structured data record allowing anything between brackets.
@@ -158,7 +152,7 @@ fn structured_datum_permissive(input: &str) -> IResult<&str, Option<StructuredEl
         structured_datum_strict,
         // If the element fails to parse, just parse it and return None.
         delimited(tag("["), map(take_until("]"), |_| None), tag("]")),
-    ))(input)
+    )).parse(input)
 }
 
 /// Parse a single structured data record.
@@ -187,7 +181,7 @@ pub(crate) fn structured_data_optional(
             map(many1(structured_datum(allow_failure)), |items| {
                 items.iter().filter_map(|item| item.clone()).collect()
             }),
-        ))(input)
+        )).parse(input)
     }
 }
 
