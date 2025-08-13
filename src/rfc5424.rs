@@ -59,7 +59,7 @@ pub(crate) fn parse(input: &str) -> IResult<&str, Message<&str>> {
             protocol: Protocol::RFC5424(version),
             facility: pri.0,
             severity: pri.1,
-            timestamp: Some(timestamp),
+            timestamp,
             hostname,
             appname,
             procid: procid.map(|p| p.into()),

@@ -982,3 +982,24 @@ fn parse_5424_f5_logs() {
         }
     );
 }
+
+#[test]
+fn parse_5424_no_timestamp() {
+    let msg = r#"<14>1 - 10.0.4.87 Serial-Debugger - - - Serializer started!"#;
+
+    assert_eq!(
+        parse_message_with_year(msg, with_year, Variant::Either),
+        Message {
+            facility: Some(SyslogFacility::LOG_USER),
+            severity: Some(SyslogSeverity::SEV_INFO),
+            timestamp: None,
+            hostname: Some("10.0.4.87"),
+            appname: Some("Serial-Debugger"),
+            procid: None,
+            msgid: None,
+            protocol: Protocol::RFC5424(1),
+            structured_data: vec![],
+            msg: "Serializer started!",
+        }
+    );
+}
