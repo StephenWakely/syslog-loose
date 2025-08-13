@@ -1,4 +1,4 @@
-use crate::pri::{SyslogFacility, SyslogSeverity, compose_pri};
+use crate::pri::{compose_pri, SyslogFacility, SyslogSeverity};
 use crate::procid::ProcId;
 use crate::structured_data;
 use chrono::prelude::*;
@@ -41,8 +41,7 @@ impl<S: AsRef<str> + Ord + PartialEq + Clone> fmt::Display for Message<S> {
                 Protocol::RFC5424(version) => version.to_string(),
             },
             self.timestamp
-                .unwrap_or_else(|| Utc::now().into())
-                .to_rfc3339(),
+                .map_or_else(|| empty.clone(), |ts| ts.to_rfc3339()),
             self.hostname.as_ref().map(|s| s.as_ref()).unwrap_or(&empty)
         )?;
 
