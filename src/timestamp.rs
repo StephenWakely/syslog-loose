@@ -1,17 +1,24 @@
 use crate::parsers::digits;
 use chrono::prelude::*;
 use nom::{
-    IResult, Parser as _,
     branch::alt,
     bytes::complete::{tag, take, take_until},
     character::complete::space1,
     combinator::{map, map_res, opt},
     error::{self, ErrorKind},
+    IResult, Parser as _,
 };
 
 /// The timestamp for 5424 messages yyyy-mm-ddThh:mm:ss.mmmmZ
-pub(crate) fn timestamp_3339(input: &str) -> IResult<&str, DateTime<FixedOffset>> {
-    map_res(take_until(" "), chrono::DateTime::parse_from_rfc3339).parse(input)
+/// Can be None if the NILVALUE is passed.
+pub(crate) fn timestamp_3339(input: &str) -> IResult<&str, Option<DateTime<FixedOffset>>> {
+    alt((
+        map(tag("-"), |_| None),
+        map_res(take_until(" "), |ts| {
+            chrono::DateTime::parse_from_rfc3339(ts).map(Some)
+        }),
+    ))
+    .parse(input)
 }
 
 /// An incomplete date is a tuple of (month, date, hour, minutes, seconds)
@@ -124,24 +131,28 @@ where
 pub(crate) fn timestamp_3164<F, Tz: TimeZone + Copy>(
     get_year: F,
     tz: Option<Tz>,
-) -> impl Fn(&str) -> IResult<&str, DateTime<FixedOffset>>
+) -> impl Fn(&str) -> IResult<&str, Option<DateTime<FixedOffset>>>
 where
     F: FnOnce(IncompleteDate) -> i32 + Copy,
 {
     move |input| {
         alt((
             map_res(timestamp_3164_no_year, |ts| {
-                make_timestamp::<_, Tz>(ts, get_year, tz).ok_or("invalid date")
+                make_timestamp::<_, Tz>(ts, get_year, tz)
+                    .ok_or("invalid date")
+                    .map(Some)
             }),
             map(timestamp_3164_with_year, |naive_date| match tz {
                 Some(tz) => {
                     let offset = tz.offset_from_utc_datetime(&naive_date).fix();
-                    DateTime::<FixedOffset>::from_naive_utc_and_offset(naive_date, offset)
+                    Some(DateTime::<FixedOffset>::from_naive_utc_and_offset(
+                        naive_date, offset,
+                    ))
                 }
-                None => match Local.from_local_datetime(&naive_date).earliest() {
+                None => Some(match Local.from_local_datetime(&naive_date).earliest() {
                     Some(timestamp) => timestamp.into(),
                     None => Local.from_utc_datetime(&naive_date).into(),
-                },
+                }),
             }),
             timestamp_3339,
         ))
@@ -157,15 +168,19 @@ mod tests {
 
     #[test]
     fn parse_timestamp_3339() {
+        assert_eq!(timestamp_3339("-").unwrap(), ("", None));
+
         assert_eq!(
             timestamp_3339("1985-04-12T23:20:50.52Z ").unwrap(),
             (
                 " ",
-                FixedOffset::east_opt(0)
-                    .unwrap()
-                    .with_ymd_and_hms(1985, 4, 12, 23, 20, 50)
-                    .unwrap()
-                    + Duration::milliseconds(520)
+                Some(
+                    FixedOffset::east_opt(0)
+                        .unwrap()
+                        .with_ymd_and_hms(1985, 4, 12, 23, 20, 50)
+                        .unwrap()
+                        + Duration::milliseconds(520)
+                )
             )
         );
 
@@ -173,11 +188,13 @@ mod tests {
             timestamp_3339("1985-04-12T23:20:50.52-07:00 ").unwrap(),
             (
                 " ",
-                FixedOffset::west_opt(7 * 3600)
-                    .unwrap()
-                    .with_ymd_and_hms(1985, 4, 12, 23, 20, 50)
-                    .unwrap()
-                    + Duration::milliseconds(520)
+                Some(
+                    FixedOffset::west_opt(7 * 3600)
+                        .unwrap()
+                        .with_ymd_and_hms(1985, 4, 12, 23, 20, 50)
+                        .unwrap()
+                        + Duration::milliseconds(520)
+                )
             )
         );
 
@@ -185,11 +202,13 @@ mod tests {
             timestamp_3339("2003-10-11T22:14:15.003Z ").unwrap(),
             (
                 " ",
-                FixedOffset::west_opt(0)
-                    .unwrap()
-                    .with_ymd_and_hms(2003, 10, 11, 22, 14, 15)
-                    .unwrap()
-                    + Duration::milliseconds(3),
+                Some(
+                    FixedOffset::west_opt(0)
+                        .unwrap()
+                        .with_ymd_and_hms(2003, 10, 11, 22, 14, 15)
+                        .unwrap()
+                        + Duration::milliseconds(3)
+                ),
             )
         )
     }
@@ -216,10 +235,12 @@ mod tests {
             timestamp_3164(|_| 2019, Some(Utc.fix()))("Dec 28 2008 16:49:07 ",).unwrap(),
             (
                 " ",
-                FixedOffset::west_opt(0)
-                    .unwrap()
-                    .with_ymd_and_hms(2008, 12, 28, 16, 49, 7)
-                    .unwrap()
+                Some(
+                    FixedOffset::west_opt(0)
+                        .unwrap()
+                        .with_ymd_and_hms(2008, 12, 28, 16, 49, 7)
+                        .unwrap()
+                )
             )
         );
     }
@@ -236,7 +257,10 @@ mod tests {
             .unwrap();
         assert_eq!(
             timestamp_3164::<_, Local>(|_| 2019, None)("Aug 4 16:49:07 ",).unwrap(),
-            (" ", offset.with_ymd_and_hms(2019, 8, 4, 16, 49, 7).unwrap())
+            (
+                " ",
+                Some(offset.with_ymd_and_hms(2019, 8, 4, 16, 49, 7).unwrap())
+            )
         );
     }
 
@@ -252,7 +276,10 @@ mod tests {
             .unwrap();
         assert_eq!(
             timestamp_3164::<_, Local>(|_| 2019, None)("Aug 4 2020 16:49:07 ",).unwrap(),
-            (" ", offset.with_ymd_and_hms(2020, 8, 4, 16, 49, 7).unwrap())
+            (
+                " ",
+                Some(offset.with_ymd_and_hms(2020, 8, 4, 16, 49, 7).unwrap())
+            )
         );
     }
 }

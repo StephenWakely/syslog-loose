@@ -90,7 +90,7 @@ where
                 protocol: Protocol::RFC3164,
                 facility: pri.0,
                 severity: pri.1,
-                timestamp: Some(timestamp),
+                timestamp,
                 hostname: host,
                 appname,
                 procid: pid.map(|p| p.into()),

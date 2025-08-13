@@ -13,7 +13,7 @@ use non_empty_string::{
 };
 use quickcheck::{Arbitrary, Gen, QuickCheck, TestResult};
 use syslog_loose::{
-    Message, ProcId, Protocol, StructuredElement, Variant, decompose_pri, parse_message,
+    decompose_pri, parse_message, Message, ProcId, Protocol, StructuredElement, Variant,
 };
 
 /// Create a wrapper struct for us to implement Arbitrary against
@@ -51,7 +51,7 @@ impl Arbitrary for Wrapper<Message<String>> {
             Protocol::RFC5424(1)
         };
 
-	// 3164 can't take empty structured data elements, so filter them out.
+        // 3164 can't take empty structured data elements, so filter them out.
         if protocol == Protocol::RFC3164 {
             structured_data = structured_data
                 .into_iter()
@@ -93,11 +93,11 @@ impl Arbitrary for Wrapper<Message<String>> {
         // if `nsecs` is out of range. This happens when `nsecs` is equivalent
         // to a number of days greater than the `i32::MAX`. If we limit `secs`
         // to i32 itself this can't happen.
-        let secs: i32 = i32::arbitrary(g);
+        let secs: Option<i32> = Option::arbitrary(g);
         Wrapper(Message {
             facility,
             severity,
-            timestamp: Some(Utc.timestamp_opt(secs as i64, 0).unwrap().into()),
+            timestamp: secs.map(|secs| Utc.timestamp_opt(secs as i64, 0).unwrap().into()),
             hostname,
             appname,
             procid,
