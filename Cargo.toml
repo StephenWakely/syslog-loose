@@ -17,8 +17,8 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 
 [dev-dependencies]
 chrono-tz = "0.10"
-criterion = "0.8.0"
-criterion-cycles-per-byte = "0.8.0"
+criterion = "0.8"
+criterion-cycles-per-byte = "0.8"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 
