@@ -26,21 +26,44 @@ pub type IncompleteDate = (u32, u32, u32, u32, u32);
 
 /// The month as a three letter string. Returns the number.
 fn parse_month(s: &str) -> Result<u32, String> {
-    match s.to_lowercase().as_ref() {
-        "jan" => Ok(1),
-        "feb" => Ok(2),
-        "mar" => Ok(3),
-        "apr" => Ok(4),
-        "may" => Ok(5),
-        "jun" => Ok(6),
-        "jul" => Ok(7),
-        "aug" => Ok(8),
-        "sep" => Ok(9),
-        "oct" => Ok(10),
-        "nov" => Ok(11),
-        "dec" => Ok(12),
-        _ => Err(format!("Invalid month {}", s)),
+    if s.eq_ignore_ascii_case("jan") {
+        return Ok(1);
     }
+    if s.eq_ignore_ascii_case("feb") {
+        return Ok(2);
+    }
+    if s.eq_ignore_ascii_case("mar") {
+        return Ok(3);
+    }
+    if s.eq_ignore_ascii_case("apr") {
+        return Ok(4);
+    }
+    if s.eq_ignore_ascii_case("may") {
+        return Ok(5);
+    }
+    if s.eq_ignore_ascii_case("jun") {
+        return Ok(6);
+    }
+    if s.eq_ignore_ascii_case("jul") {
+        return Ok(7);
+    }
+    if s.eq_ignore_ascii_case("aug") {
+        return Ok(8);
+    }
+    if s.eq_ignore_ascii_case("sep") {
+        return Ok(9);
+    }
+    if s.eq_ignore_ascii_case("oct") {
+        return Ok(10);
+    }
+    if s.eq_ignore_ascii_case("nov") {
+        return Ok(11);
+    }
+    if s.eq_ignore_ascii_case("dec") {
+        return Ok(12);
+    }
+
+    return Err(format!("Invalid month {}", s));
 }
 
 /// The timestamp for 3164 messages. MMM DD HH:MM:SS
