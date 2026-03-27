@@ -2,6 +2,7 @@
 extern crate criterion;
 
 use criterion::{BenchmarkId, Criterion, Throughput};
+use std::hint::black_box;
 use criterion_cycles_per_byte::CyclesPerByte;
 use std::convert::TryInto;
 use std::include_str;
@@ -46,9 +47,34 @@ fn parse_bench_rfc5424(c: &mut Criterion<CyclesPerByte>) {
     group.finish();
 }
 
+static ESCAPED_LINE: &str = include_str!("rfc5424/with_structured_data_escaped.txt");
+
+fn parse_bench_rfc5424_escaped_params(c: &mut Criterion<CyclesPerByte>) {
+    let mut group = c.benchmark_group("RFC5424");
+    let bytes: u64 = ESCAPED_LINE.len().try_into().unwrap();
+
+    group.throughput(Throughput::Bytes(bytes));
+    group.bench_with_input(
+        BenchmarkId::new("with_structured_data_escaped_params", bytes),
+        ESCAPED_LINE,
+        |b, line| {
+            b.iter(|| {
+                let msg = syslog_loose::parse_message(line, Variant::Either);
+                for element in &msg.structured_data {
+                    for (key, value) in element.params() {
+                        black_box((key, value));
+                    }
+                }
+                msg
+            })
+        },
+    );
+    group.finish();
+}
+
 criterion_group!(
     name = benches;
     config = Criterion::default().with_measurement(CyclesPerByte);
-    targets = parse_bench_rfc5424
+    targets = parse_bench_rfc5424, parse_bench_rfc5424_escaped_params
 );
 criterion_main!(benches);
