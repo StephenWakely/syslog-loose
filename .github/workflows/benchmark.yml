@@ -1,0 +1,48 @@
+name: Benchmarks
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: write       # push benchmark data to gh-pages
+  pull-requests: write  # post PR comments
+
+jobs:
+  benchmark:
+    name: Run benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-bench-
+
+      - name: Run benchmarks
+        run: cargo bench --bench bench -- --output-format bencher | tee bench_output.txt
+
+      - name: Store / compare results
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: cargo
+          output-file-path: bench_output.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Push new baseline only when landing on master
+          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          # Always comment on PRs so reviewers see the numbers
+          comment-always: ${{ github.event_name == 'pull_request' }}
+          comment-on-alert: true
+          # Flag regressions beyond 20% but don't hard-fail the PR —
+          # cycle counts on shared CI hardware can be noisy.
+          alert-threshold: "120%"
+          fail-on-alert: false
