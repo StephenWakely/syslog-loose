@@ -31,6 +31,25 @@ static PARAMETERS: [Parameter; 4] = [
     },
 ];
 
+static RFC3164_PARAMETERS: [Parameter; 4] = [
+    Parameter {
+        line: include_str!("rfc3164/simple.txt"),
+        name: "simple",
+    },
+    Parameter {
+        line: include_str!("rfc3164/long_msg.txt"),
+        name: "long_msg",
+    },
+    Parameter {
+        line: include_str!("rfc3164/with_structured_data.txt"),
+        name: "with_structured_data",
+    },
+    Parameter {
+        line: include_str!("rfc3164/rfc3339_timestamp.txt"),
+        name: "rfc3339_timestamp",
+    },
+];
+
 fn parse_bench_rfc5424(c: &mut Criterion<CyclesPerByte>) {
     let mut group = c.benchmark_group("RFC5424");
     for param in &PARAMETERS {
@@ -46,9 +65,24 @@ fn parse_bench_rfc5424(c: &mut Criterion<CyclesPerByte>) {
     group.finish();
 }
 
+fn parse_bench_rfc3164(c: &mut Criterion<CyclesPerByte>) {
+    let mut group = c.benchmark_group("RFC3164");
+    for param in &RFC3164_PARAMETERS {
+        let name = param.name;
+        let line = param.line;
+        let bytes = param.line.len().try_into().unwrap();
+
+        group.throughput(Throughput::Bytes(bytes));
+        group.bench_with_input(BenchmarkId::new(name, bytes), line, |b, line| {
+            b.iter(|| syslog_loose::parse_message(line, Variant::Either))
+        });
+    }
+    group.finish();
+}
+
 criterion_group!(
     name = benches;
     config = Criterion::default().with_measurement(CyclesPerByte);
-    targets = parse_bench_rfc5424
+    targets = parse_bench_rfc5424, parse_bench_rfc3164
 );
 criterion_main!(benches);
