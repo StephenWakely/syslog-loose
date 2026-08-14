@@ -1,10 +1,10 @@
 //! Parsers shared by both protocols.
 use nom::{
-    Err, IResult, Parser as _,
     bytes::complete::take_while1,
     character::complete::digit1,
     combinator::map_res,
-    error::{ErrorKind, make_error},
+    error::{make_error, ErrorKind},
+    Err, IResult, Parser as _,
 };
 use std::str::FromStr;
 
@@ -29,9 +29,12 @@ fn optional(input: &str, opts: ParserOpts) -> IResult<&str, Option<&str>> {
     if value.trim() == ":" {
         // A colon by itself indicates we are at the separator between headers and message.
         Err(Err::Error(make_error(input, ErrorKind::Fail)))
-    } else if value.ends_with(':') && !opts.has_trailing_colon {
-        // If the field ends with a colon, the colon should be treated as the separator between
-        // the headers and the message, we return the field but leave the separator.
+    } else if value.ends_with(':') && !value.ends_with("::") && !opts.has_trailing_colon {
+        // If the field ends with a single colon, the colon should be treated as the separator
+        // between the headers and the message, we return the field but leave the separator.
+        //
+        // A field ending in a double colon is left intact, since that is a valid (if unusual)
+        // rendering of an IPv6 address, e.g. `fe80::` or `2600:1f14:247e:5804:29e3::`.
         let split = value.len() - 1;
         Ok((&input[split..], Some(&value[0..split])))
     } else if value == "-" || value.is_empty() {
@@ -137,5 +140,16 @@ mod tests {
     #[test]
     fn trailing_colon() {
         assert_eq!(hostname("zork: "), Ok((": ", Some("zork"))))
+    }
+
+    #[test]
+    fn hostname_ipv6_trailing_double_colon() {
+        // IPv6 addresses that end in `::` must not have their final colon stripped as if
+        // it were the header/message separator.
+        assert_eq!(
+            hostname("2600:1f14:247e:5804:29e3:: "),
+            Ok((" ", Some("2600:1f14:247e:5804:29e3::")))
+        );
+        assert_eq!(hostname("fe80:: "), Ok((" ", Some("fe80::"))));
     }
 }
