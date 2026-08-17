@@ -449,8 +449,8 @@ bye"#
 
     #[test]
     fn params_borrows_when_no_escapes() {
-        let data = structured_data(r#"[id plain="simple value" other="no escaping here"]"#)
-            .unwrap();
+        let data =
+            structured_data(r#"[id plain="simple value" other="no escaping here"]"#).unwrap();
         for (_key, value) in data.1[0].params() {
             assert!(
                 matches!(value, Cow::Borrowed(_)),
