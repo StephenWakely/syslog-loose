@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774644394857,
+  "lastUpdate": 1786952331188,
   "repoUrl": "https://github.com/StephenWakely/syslog-loose",
   "entries": {
     "Benchmark": [
@@ -119,6 +119,78 @@ window.BENCHMARK_DATA = {
             "name": "RFC3164/rfc3339_timestamp/170",
             "value": 2484,
             "range": "± 20",
+            "unit": "cycles/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fungus.humungus@gmail.com",
+            "name": "Stephen Wakely",
+            "username": "StephenWakely"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "da1fc19098189816ebaf545bd4d415c110f7a939",
+          "message": "Ensure IPv6 addresses ending with :: are not treated as separators. (#53)",
+          "timestamp": "2026-08-17T08:36:18+01:00",
+          "tree_id": "72ab956c93e8d4db1c9ba638220745ebff83e149",
+          "url": "https://github.com/StephenWakely/syslog-loose/commit/da1fc19098189816ebaf545bd4d415c110f7a939"
+        },
+        "date": 1786952330735,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "RFC5424/with_structured_data/177",
+            "value": 1382,
+            "range": "± 23",
+            "unit": "cycles/iter"
+          },
+          {
+            "name": "RFC5424/with_structured_data_long_message/1893",
+            "value": 807,
+            "range": "± 16",
+            "unit": "cycles/iter"
+          },
+          {
+            "name": "RFC5424/with_structured_data_long_message/1960",
+            "value": 1374,
+            "range": "± 15",
+            "unit": "cycles/iter"
+          },
+          {
+            "name": "RFC5424/without_structured_data/110",
+            "value": 812,
+            "range": "± 11",
+            "unit": "cycles/iter"
+          },
+          {
+            "name": "RFC3164/simple/57",
+            "value": 1353,
+            "range": "± 20",
+            "unit": "cycles/iter"
+          },
+          {
+            "name": "RFC3164/long_msg/201",
+            "value": 1337,
+            "range": "± 8",
+            "unit": "cycles/iter"
+          },
+          {
+            "name": "RFC3164/with_structured_data/153",
+            "value": 2203,
+            "range": "± 196",
+            "unit": "cycles/iter"
+          },
+          {
+            "name": "RFC3164/rfc3339_timestamp/170",
+            "value": 2124,
+            "range": "± 23",
             "unit": "cycles/iter"
           }
         ]
