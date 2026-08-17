@@ -7,9 +7,9 @@ use crate::{
     timestamp::timestamp_3339,
 };
 use nom::{
-    IResult, Parser as _,
     character::complete::{space0, space1},
     combinator::{map, rest},
+    IResult, Parser as _,
 };
 
 /// Parse the version number - just a simple integer.
@@ -75,7 +75,7 @@ pub(crate) fn parse(input: &str) -> IResult<&str, Message<&str>> {
 mod tests {
     use super::*;
     use crate::pri::{SyslogFacility, SyslogSeverity};
-    use chrono::{Duration, prelude::*};
+    use chrono::{prelude::*, Duration};
 
     #[test]
     fn parse_5424() {
@@ -104,5 +104,46 @@ mod tests {
                 }
             )
         )
+    }
+
+    #[test]
+    fn parse_5424_ipv6_hostname_trailing_double_colon() {
+        // Every one of these hostnames must parse successfully, including the last two,
+        // which end in a bare `::` and previously failed to parse.
+        for host in [
+            "ip-10-32-13-166.eu-west-1.compute.internal",
+            "::1",
+            "2a05:d018::1:0",
+            "2600:1f14:247e:5804:29e3::3",
+            "2600:1f14:247e:5804:29e3::",
+            "fe80::",
+        ] {
+            let msg = format!("<14>1 2026-08-13T08:00:00.000+00:00 {host} app - - - hello world");
+
+            assert_eq!(
+                parse(&msg),
+                Ok((
+                    "",
+                    Message {
+                        protocol: Protocol::RFC5424(1),
+                        facility: Some(SyslogFacility::LOG_USER),
+                        severity: Some(SyslogSeverity::SEV_INFO),
+                        timestamp: Some(
+                            FixedOffset::east_opt(0)
+                                .unwrap()
+                                .with_ymd_and_hms(2026, 8, 13, 8, 0, 0)
+                                .unwrap()
+                        ),
+                        hostname: Some(host),
+                        appname: Some("app"),
+                        procid: None,
+                        msgid: None,
+                        structured_data: vec![],
+                        msg: "hello world",
+                    }
+                )),
+                "failed to parse hostname {host:?}"
+            );
+        }
     }
 }
