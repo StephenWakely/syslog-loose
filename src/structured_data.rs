@@ -1,5 +1,4 @@
 use nom::{
-    IResult, Parser,
     branch::alt,
     bytes::complete::{escaped, tag, take_till1, take_until, take_while1},
     character::complete::{anychar, space0},
@@ -7,8 +6,9 @@ use nom::{
     error,
     multi::{many1, separated_list0},
     sequence::{delimited, separated_pair, terminated},
+    IResult, Parser,
 };
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 #[derive(Clone, Debug, Eq)]
 pub struct StructuredElement<S: AsRef<str> + Ord + Clone> {
@@ -22,11 +22,18 @@ pub struct ParamsIter<'a, S: AsRef<str>> {
 }
 
 impl<S: AsRef<str> + Ord + Clone> StructuredElement<S> {
-    /// Since we parse the message without any additional allocations, we can't parse out the
-    /// escapes during parsing as that would require allocating an extra string to store the
-    /// stripped version.
-    /// So params returns an iterator that will allocate and return a string with the escapes
-    /// stripped out.
+    /// Returns an iterator over the parameters of this element, with any escape sequences in
+    /// the values stripped out.
+    ///
+    /// Since we parse the message without any additional allocations, the escapes can't be
+    /// stripped during parsing as that would require allocating an extra string to store the
+    /// stripped version. They are therefore stripped here instead, as each parameter is
+    /// yielded.
+    ///
+    /// Each value is returned as a [`Cow<str>`]: values containing no escape sequences (the
+    /// common case) are borrowed directly from the original message and cost no allocation,
+    /// while values that do contain escapes are unescaped into a newly allocated
+    /// [`Cow::Owned`] string.
     pub fn params(&self) -> ParamsIter<'_, S> {
         ParamsIter {
             pos: 0,
@@ -82,34 +89,41 @@ impl From<StructuredElement<&str>> for StructuredElement<String> {
 }
 
 impl<'a, S: AsRef<str> + Ord + Clone> Iterator for ParamsIter<'a, S> {
-    type Item = (&'a S, String);
+    type Item = (&'a S, Cow<'a, str>);
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.pos >= self.params.len() {
-            None
-        } else {
-            let (key, value) = &self.params[self.pos];
-            self.pos += 1;
-            let mut trimmed = String::with_capacity(value.as_ref().len());
-            let mut escaped = false;
-            for c in value.as_ref().chars() {
-                if c == '\\' && !escaped {
-                    escaped = true;
-                } else if c == 'n' && escaped {
-                    escaped = false;
-                    trimmed.push('\n');
-                } else if c != '"' && c != ']' && c != '\\' && escaped {
-                    // If the character following the escape isn't a \, " or ] we treat it like an normal unescaped character.
-                    escaped = false;
-                    trimmed.push('\\');
-                    trimmed.push(c);
-                } else {
-                    escaped = false;
-                    trimmed.push(c);
-                }
-            }
-            Some((key, trimmed))
+            return None;
         }
+        let (key, value) = &self.params[self.pos];
+        self.pos += 1;
+        let value = value.as_ref();
+
+        // Fast path: if there are no backslashes there is nothing to unescape.
+        if !value.contains('\\') {
+            return Some((key, Cow::Borrowed(value)));
+        }
+
+        // Slow path: allocate and strip escape sequences.
+        let mut trimmed = String::with_capacity(value.len());
+        let mut escaped = false;
+        for c in value.chars() {
+            if c == '\\' && !escaped {
+                escaped = true;
+            } else if c == 'n' && escaped {
+                escaped = false;
+                trimmed.push('\n');
+            } else if c != '"' && c != ']' && c != '\\' && escaped {
+                // If the character following the escape isn't a \, " or ] we treat it like a normal unescaped character.
+                escaped = false;
+                trimmed.push('\\');
+                trimmed.push(c);
+            } else {
+                escaped = false;
+                trimmed.push(c);
+            }
+        }
+        Some((key, Cow::Owned(trimmed)))
     }
 }
 
@@ -411,23 +425,38 @@ mod tests {
             r#"[id aa="hullo \"there\"" bb="let's \\\\do this\\\\" cc="hello [bye\]" dd="hello\nbye" ee="not \esc\aped"]"#,
         )
         .unwrap();
-        let params = data.1[0].params().collect::<Vec<_>>();
+        let params = data.1[0]
+            .params()
+            .map(|(k, v)| (*k, v.into_owned()))
+            .collect::<Vec<_>>();
 
         assert_eq!(
             params,
             vec![
-                (&"aa", r#"hullo "there""#.to_string()),
-                (&"bb", r#"let's \\do this\\"#.to_string(),),
-                (&"cc", r#"hello [bye]"#.to_string(),),
+                ("aa", r#"hullo "there""#.to_string()),
+                ("bb", r#"let's \\do this\\"#.to_string()),
+                ("cc", r#"hello [bye]"#.to_string()),
                 (
-                    &"dd",
+                    "dd",
                     r#"hello
 bye"#
                         .to_string(),
                 ),
-                (&"ee", r#"not \esc\aped"#.to_string())
+                ("ee", r#"not \esc\aped"#.to_string())
             ]
         );
+    }
+
+    #[test]
+    fn params_borrows_when_no_escapes() {
+        let data =
+            structured_data(r#"[id plain="simple value" other="no escaping here"]"#).unwrap();
+        for (_key, value) in data.1[0].params() {
+            assert!(
+                matches!(value, Cow::Borrowed(_)),
+                "expected Borrowed for value without escapes, got Owned"
+            );
+        }
     }
 
     #[test]
@@ -456,13 +485,11 @@ bye"#
             ))
         );
 
-        assert!(
-            StructuredDatumParser {
-                allow_failure: true,
-                allow_empty: false,
-            }
-            .parse("[WAN_LOCAL-default-D]")
-            .is_err()
-        );
+        assert!(StructuredDatumParser {
+            allow_failure: true,
+            allow_empty: false,
+        }
+        .parse("[WAN_LOCAL-default-D]")
+        .is_err());
     }
 }
