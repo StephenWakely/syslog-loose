@@ -22,11 +22,18 @@ pub struct ParamsIter<'a, S: AsRef<str>> {
 }
 
 impl<S: AsRef<str> + Ord + Clone> StructuredElement<S> {
-    /// Since we parse the message without any additional allocations, we can't parse out the
-    /// escapes during parsing as that would require allocating an extra string to store the
-    /// stripped version.
-    /// So params returns an iterator that will allocate and return a string with the escapes
-    /// stripped out.
+    /// Returns an iterator over the parameters of this element, with any escape sequences in
+    /// the values stripped out.
+    ///
+    /// Since we parse the message without any additional allocations, the escapes can't be
+    /// stripped during parsing as that would require allocating an extra string to store the
+    /// stripped version. They are therefore stripped here instead, as each parameter is
+    /// yielded.
+    ///
+    /// Each value is returned as a [`Cow<str>`]: values containing no escape sequences (the
+    /// common case) are borrowed directly from the original message and cost no allocation,
+    /// while values that do contain escapes are unescaped into a newly allocated
+    /// [`Cow::Owned`] string.
     pub fn params(&self) -> ParamsIter<'_, S> {
         ParamsIter {
             pos: 0,

@@ -63,7 +63,7 @@ fn parse_month(s: &str) -> Result<u32, String> {
         return Ok(12);
     }
 
-    return Err(format!("Invalid month {}", s));
+    Err(format!("Invalid month {}", s))
 }
 
 /// The timestamp for 3164 messages. MMM DD HH:MM:SS
